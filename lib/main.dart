@@ -16,8 +16,8 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'TeenPay',
       theme: ThemeData(primarySwatch: Colors.blue),
-      // home: const WelcomeScreen(), 
-      home: const LoginOrRegisterScreen(), 
+      home: const WelcomeScreen(), 
+      // home: const LoginOrRegisterScreen(), 
     );
   }
 }

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'login_or_register.dart'; // 👈 Import your login/register screen
 
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({Key? key}) : super(key: key);
@@ -7,7 +6,7 @@ class WelcomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFE0FFFF), // background
+      backgroundColor: const Color(0xFFE0FFFF), // <-- updated background
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
@@ -56,7 +55,7 @@ class WelcomeScreen extends StatelessWidget {
 
               const SizedBox(height: 48),
 
-              // Feature Items
+              // Feature Items with custom icons
               _buildFeatureItem(
                 imagePath: 'assets/login-icons/flash.png',
                 backgroundColor: Colors.blue.shade100,
@@ -83,13 +82,7 @@ class WelcomeScreen extends StatelessWidget {
                 height: 50,
                 child: ElevatedButton(
                   onPressed: () {
-                    // 👇 Push navigation (user can go back)
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const LoginOrRegisterScreen(),
-                      ),
-                    );
+                    print('Get Started pressed');
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue,
@@ -114,7 +107,7 @@ class WelcomeScreen extends StatelessWidget {
     );
   }
 
-  // Custom Feature Item Widget
+  // Custom Feature Item Widget (resized icons)
   Widget _buildFeatureItem({
     required String imagePath,
     required Color backgroundColor,
@@ -123,14 +116,14 @@ class WelcomeScreen extends StatelessWidget {
     return Row(
       children: [
         Container(
-          width: 54,
+          width: 54,  // slightly bigger circle
           height: 54,
           decoration: BoxDecoration(
             color: backgroundColor,
             shape: BoxShape.circle,
           ),
           child: Padding(
-            padding: const EdgeInsets.all(6.0),
+            padding: const EdgeInsets.all(6.0), // smaller padding
             child: Image.asset(imagePath, fit: BoxFit.contain),
           ),
         ),
