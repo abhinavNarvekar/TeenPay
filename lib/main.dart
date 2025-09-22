@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'Login-section/welcome_screen.dart';
 import 'Login-section/login_or_register.dart'; // import your file
- // import your file
+import 'Login-section/otp_verify.dart'; //
+import 'Login-section/enter_phoneno.dart'; //
+import 'Set_details_section/set_details.dart'; 
+import 'Set_details_section/set_mpin.dart'; // import your file
 
 void main() {
   runApp(const MyApp());
@@ -16,8 +19,13 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'TeenPay',
       theme: ThemeData(primarySwatch: Colors.blue),
-      home: const WelcomeScreen(), 
-      // home: const LoginOrRegisterScreen(), 
+      // home: const WelcomeScreen(),
+      // home: const LoginOrRegisterScreen(),
+      //  home:OTPVerificationScreen(),
+      //  home:PhoneNumberEntryScreen(),
+      // home: SetDetailsScreen(),
+      home: SetNewPinScreen(),
+
     );
   }
 }
