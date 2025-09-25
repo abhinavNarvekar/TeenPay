@@ -17,6 +17,11 @@ class _PhoneNumberEntryScreenState extends State<PhoneNumberEntryScreen> {
   void initState() {
     super.initState();
     _phoneController.addListener(_onPhoneNumberChanged);
+
+    // Automatically focus the phone field and show keyboard
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      FocusScope.of(context).requestFocus(_phoneFocusNode);
+    });
   }
 
   @override
@@ -28,14 +33,11 @@ class _PhoneNumberEntryScreenState extends State<PhoneNumberEntryScreen> {
 
   void _onPhoneNumberChanged() {
     setState(() {
-      // Enable button if phone number has at least 10 digits
       _isButtonEnabled = _phoneController.text.length >= 10;
     });
   }
 
   bool _validatePhoneNumber(String phoneNumber) {
-    // TODO: Add more comprehensive phone number validation here
-    // For now, just check if it has 10 digits and contains only numbers
     final RegExp phoneRegExp = RegExp(r'^[0-9]{10}$');
     return phoneRegExp.hasMatch(phoneNumber);
   }
@@ -50,17 +52,10 @@ class _PhoneNumberEntryScreenState extends State<PhoneNumberEntryScreen> {
 
     final fullPhoneNumber = '+91$phoneNumber';
 
-    // TODO: Add backend API call to send OTP here
-    // Example: await authService.sendOTP(fullPhoneNumber);
-
     _navigateToOTPScreen(fullPhoneNumber);
   }
 
   void _navigateToOTPScreen(String phoneNumber) {
-    // TODO: Replace with actual navigation to OTP screen
-    // Navigator.push(context, MaterialPageRoute(builder: (context) => OTPVerificationScreen(phoneNumber: phoneNumber)));
-
-    // For now, show a placeholder dialog
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -97,7 +92,7 @@ class _PhoneNumberEntryScreenState extends State<PhoneNumberEntryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFE3F2FD), // Light blue background
+      backgroundColor: const Color(0xFFE3F2FD),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -122,72 +117,18 @@ class _PhoneNumberEntryScreenState extends State<PhoneNumberEntryScreen> {
             children: [
               const Spacer(flex: 2),
 
-              // Wallet Logo - same as previous design
-              Container(
+              // TeenPay Logo
+              SizedBox(
                 width: 120,
                 height: 80,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Color(0xFF4DD0E1), // Light teal
-                      Color(0xFF26C6DA), // Medium teal
-                      Color(0xFF00ACC1), // Dark teal
-                      Color(0xFF0097A7), // Darker teal
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
-                      blurRadius: 8,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Stack(
-                  children: [
-                    // Card lines
-                    Positioned(
-                      bottom: 20,
-                      left: 12,
-                      right: 12,
-                      child: Column(
-                        children: [
-                          Container(
-                            height: 2,
-                            color: Colors.white.withOpacity(0.8),
-                          ),
-                          const SizedBox(height: 4),
-                          Container(
-                            height: 2,
-                            width: 80,
-                            color: Colors.white.withOpacity(0.6),
-                          ),
-                        ],
-                      ),
-                    ),
-                    // Circle (chip)
-                    Positioned(
-                      top: 16,
-                      right: 16,
-                      child: Container(
-                        width: 20,
-                        height: 20,
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                    ),
-                  ],
+                child: Image.asset(
+                  'assets/login-icons/logo.png',
+                  fit: BoxFit.contain,
                 ),
               ),
 
               const Spacer(flex: 2),
 
-              // Enter your Phone text
               const Text(
                 'Enter your Phone',
                 style: TextStyle(
@@ -214,7 +155,6 @@ class _PhoneNumberEntryScreenState extends State<PhoneNumberEntryScreen> {
                 ),
                 child: Row(
                   children: [
-                    // +91 prefix
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 16,
@@ -234,7 +174,6 @@ class _PhoneNumberEntryScreenState extends State<PhoneNumberEntryScreen> {
                       height: 30,
                       color: Colors.grey.shade300,
                     ),
-                    // Phone number input
                     Expanded(
                       child: TextField(
                         controller: _phoneController,
@@ -259,7 +198,7 @@ class _PhoneNumberEntryScreenState extends State<PhoneNumberEntryScreen> {
                             color: Colors.grey,
                             fontWeight: FontWeight.normal,
                           ),
-                          counterText: '', // Hide character counter
+                          counterText: '',
                         ),
                       ),
                     ),
@@ -269,7 +208,6 @@ class _PhoneNumberEntryScreenState extends State<PhoneNumberEntryScreen> {
 
               const SizedBox(height: 32),
 
-              // Continue Button
               SizedBox(
                 width: double.infinity,
                 height: 50,
@@ -294,7 +232,6 @@ class _PhoneNumberEntryScreenState extends State<PhoneNumberEntryScreen> {
 
               const Spacer(flex: 4),
 
-              // Terms text
               Padding(
                 padding: const EdgeInsets.only(bottom: 32),
                 child: Text(
@@ -310,29 +247,3 @@ class _PhoneNumberEntryScreenState extends State<PhoneNumberEntryScreen> {
     );
   }
 }
-
-// Placeholder for OTP Screen - You can uncomment and use this when ready
-/*
-class OTPVerificationScreen extends StatefulWidget {
-  final String phoneNumber;
-  
-  const OTPVerificationScreen({Key? key, required this.phoneNumber}) : super(key: key);
-
-  @override
-  State<OTPVerificationScreen> createState() => _OTPVerificationScreenState();
-}
-
-class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('OTP Verification'),
-      ),
-      body: Center(
-        child: Text('OTP sent to: ${widget.phoneNumber}'),
-      ),
-    );
-  }
-}
-*/

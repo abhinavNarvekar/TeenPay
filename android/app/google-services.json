@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "575284237551",
+    "project_id": "teenpay-540cc",
+    "storage_bucket": "teenpay-540cc.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:575284237551:android:698b52eec6a6efc679b71a",
+        "android_client_info": {
+          "package_name": "com.example.myapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAm1PC-IbPGjOhTuxeO_08qmBYwqfogmfM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
