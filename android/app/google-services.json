@@ -7,9 +7,9 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:575284237551:android:698b52eec6a6efc679b71a",
+        "mobilesdk_app_id": "1:575284237551:android:55de4e41d22a07b579b71a",
         "android_client_info": {
-          "package_name": "com.example.myapp"
+          "package_name": "com.abhinav.teenpay"
         }
       },
       "oauth_client": [],

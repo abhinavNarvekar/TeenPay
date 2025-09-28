@@ -1,8 +1,23 @@
+// lib/Login-section/otp_verify.dart
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
 
 class OTPVerificationScreen extends StatefulWidget {
-  const OTPVerificationScreen({Key? key}) : super(key: key);
+  final String verificationId;
+  final String phoneNumber;
+  final int? resendToken;
+  final ConfirmationResult? confirmationResult; // For web
+
+  const OTPVerificationScreen({
+    Key? key,
+    required this.verificationId,
+    required this.phoneNumber,
+    this.resendToken,
+    this.confirmationResult,
+  }) : super(key: key);
 
   @override
   State<OTPVerificationScreen> createState() => _OTPVerificationScreenState();
@@ -14,12 +29,17 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
     (_) => TextEditingController(),
   );
   final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
   late Timer _timer;
-  int _countdown = 53; // 53 seconds as shown in design
+  int _countdown = 60;
+  bool _isVerifying = false;
+  String _currentVerificationId = '';
 
   @override
   void initState() {
     super.initState();
+    _currentVerificationId = widget.verificationId;
     _startCountdown();
   }
 
@@ -51,15 +71,15 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
     if (value.isNotEmpty && index < 5) {
       _focusNodes[index + 1].requestFocus();
     }
-    if (_controllers.every((c) => c.text.isNotEmpty)) _verifyOTP();
+    if (_controllers.every((c) => c.text.isNotEmpty)) {
+      _verifyOTP();
+    }
   }
 
   void _onKeyboardTap(String value) {
     int currentIndex = _focusNodes.indexWhere((node) => node.hasFocus);
     if (currentIndex == -1) {
-      currentIndex = _controllers.indexWhere(
-        (controller) => controller.text.isEmpty,
-      );
+      currentIndex = _controllers.indexWhere((c) => c.text.isEmpty);
     }
 
     if (currentIndex != -1 && currentIndex < 6) {
@@ -75,23 +95,97 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
         if (currentIndex < 5) _focusNodes[currentIndex + 1].requestFocus();
       }
 
-      if (_controllers.every((c) => c.text.isNotEmpty)) _verifyOTP();
+      if (_controllers.every((c) => c.text.isNotEmpty)) {
+        _verifyOTP();
+      }
     }
   }
 
-  void _verifyOTP() {
+  void _verifyOTP() async {
     final otp = _controllers.map((c) => c.text).join();
-    _navigateToNextScreen(otp);
+
+    setState(() {
+      _isVerifying = true;
+    });
+
+    try {
+      if (kIsWeb && widget.confirmationResult != null) {
+        // Web verification using ConfirmationResult
+        await widget.confirmationResult!.confirm(otp);
+        _navigateToDashboard();
+      } else {
+        // Mobile verification using PhoneAuthCredential
+        final credential = PhoneAuthProvider.credential(
+          verificationId: _currentVerificationId,
+          smsCode: otp,
+        );
+
+        await _auth.signInWithCredential(credential);
+        _navigateToDashboard();
+      }
+    } on FirebaseAuthException catch (e) {
+      setState(() {
+        _isVerifying = false;
+      });
+
+      String errorMessage;
+      switch (e.code) {
+        case 'invalid-verification-code':
+          errorMessage = 'Invalid OTP code. Please try again.';
+          break;
+        case 'session-expired':
+          errorMessage = 'OTP session expired. Please resend code.';
+          break;
+        case 'code-expired':
+          errorMessage = 'OTP code has expired. Please resend code.';
+          break;
+        default:
+          errorMessage = 'Verification failed: ${e.message}';
+      }
+
+      _showErrorDialog(errorMessage);
+      _clearOTP();
+    } catch (e) {
+      setState(() {
+        _isVerifying = false;
+      });
+      _showErrorDialog('An error occurred: ${e.toString()}');
+      _clearOTP();
+    }
   }
 
-  void _navigateToNextScreen(String otp) {
+  void _clearOTP() {
+    for (var controller in _controllers) {
+      controller.clear();
+    }
+    _focusNodes[0].requestFocus();
+  }
+
+  void _navigateToDashboard() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('OTP Verified'),
-        content: Text(
-          'Entered 6-digit OTP: $otp\n\nThis is a placeholder. Replace with actual navigation.',
-        ),
+        title: const Text('Success!'),
+        content: Text('Welcome to TeenPay!\nPhone: ${widget.phoneNumber}'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.pop(context); // Go back to main screen
+            },
+            child: const Text('Continue'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Verification Error'),
+        content: Text(message),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -102,16 +196,48 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
     );
   }
 
-  void _resendCode() {
-    setState(() {
-      _countdown = 53;
-      for (var controller in _controllers) controller.clear();
-    });
-    _timer.cancel();
-    _startCountdown();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('OTP code resent successfully!')),
-    );
+  void _resendCode() async {
+    try {
+      if (kIsWeb) {
+        // Web resend logic - need to go back to phone entry screen
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please go back and request a new code'),
+          ),
+        );
+        Navigator.pop(context);
+      } else {
+        // Mobile resend logic
+        await _auth.verifyPhoneNumber(
+          phoneNumber: widget.phoneNumber,
+          verificationCompleted: (PhoneAuthCredential credential) async {
+            await _auth.signInWithCredential(credential);
+            _navigateToDashboard();
+          },
+          verificationFailed: (FirebaseAuthException e) {
+            _showErrorDialog('Resend failed: ${e.message}');
+          },
+          codeSent: (String verificationId, int? resendToken) {
+            setState(() {
+              _currentVerificationId = verificationId;
+              _countdown = 60;
+              for (var controller in _controllers) controller.clear();
+            });
+            _timer.cancel();
+            _startCountdown();
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('OTP code resent successfully!')),
+            );
+          },
+          codeAutoRetrievalTimeout: (String verificationId) {},
+          forceResendingToken: widget.resendToken,
+          timeout: const Duration(seconds: 60),
+        );
+      }
+    } catch (e) {
+      _showErrorDialog('Failed to resend code: ${e.toString()}');
+    }
   }
 
   @override
@@ -144,9 +270,9 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
               child: Column(
                 children: [
                   const SizedBox(height: 20),
-                  const Text(
-                    'OTP code has been sent to +91 9495454393\nEnter the 6-digit code below to continue.',
-                    style: TextStyle(
+                  Text(
+                    'OTP code has been sent to ${widget.phoneNumber}\nEnter the 6-digit code below to continue.',
+                    style: const TextStyle(
                       fontSize: 16,
                       color: Colors.black87,
                       height: 1.4,
@@ -154,37 +280,53 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 40),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: List.generate(6, (index) {
-                      return Container(
-                        width: 45,
-                        height: 50,
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey.shade400),
-                          borderRadius: BorderRadius.circular(8),
-                          color: Colors.white,
+
+                  if (_isVerifying)
+                    Column(
+                      children: [
+                        const CircularProgressIndicator(),
+                        const SizedBox(height: 16),
+                        Text(
+                          kIsWeb
+                              ? 'Verifying with Firebase...'
+                              : 'Verifying OTP...',
+                          style: const TextStyle(color: Colors.grey),
                         ),
-                        child: TextField(
-                          controller: _controllers[index],
-                          focusNode: _focusNodes[index],
-                          textAlign: TextAlign.center,
-                          maxLength: 1,
-                          keyboardType: TextInputType.number,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
+                      ],
+                    )
+                  else
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: List.generate(6, (index) {
+                        return Container(
+                          width: 45,
+                          height: 50,
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey.shade400),
+                            borderRadius: BorderRadius.circular(8),
+                            color: Colors.white,
                           ),
-                          decoration: const InputDecoration(
-                            border: InputBorder.none,
-                            counterText: '',
+                          child: TextField(
+                            controller: _controllers[index],
+                            focusNode: _focusNodes[index],
+                            textAlign: TextAlign.center,
+                            maxLength: 1,
+                            keyboardType: TextInputType.number,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            decoration: const InputDecoration(
+                              border: InputBorder.none,
+                              counterText: '',
+                            ),
+                            onChanged: (value) => _onDigitChanged(index, value),
+                            readOnly: true,
                           ),
-                          onChanged: (value) => _onDigitChanged(index, value),
-                          readOnly: true,
-                        ),
-                      );
-                    }),
-                  ),
+                        );
+                      }),
+                    ),
+
                   const SizedBox(height: 30),
                   Text(
                     _formattedTime,
@@ -198,7 +340,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                   TextButton(
                     onPressed: _countdown == 0 ? _resendCode : null,
                     child: Text(
-                      'Resend code',
+                      kIsWeb ? 'Request new code' : 'Resend code',
                       style: TextStyle(
                         fontSize: 16,
                         color: _countdown == 0 ? Colors.blue : Colors.grey,

@@ -197,7 +197,7 @@ class _SetNewPinScreenState extends State<SetNewPinScreen> {
             children: [
               const SizedBox(height: 30),
               const Text(
-                'Welcome back Abhinav,\nPlease set a new m-Pin',
+                'Welcome back Abhinav,\nPlease set a new T-Pin',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 18,
@@ -216,7 +216,7 @@ class _SetNewPinScreenState extends State<SetNewPinScreen> {
                   ),
                 ),
                 child: const Text(
-                  'Re-enter the entered m-pin',
+                  'Re-enter the entered T-pin',
                   style: TextStyle(
                     fontSize: 16,
                     color: Colors.black87,
@@ -272,39 +272,74 @@ class _SetNewPinScreenState extends State<SetNewPinScreen> {
                     Row(
                       children: [
                         Expanded(
-                          child: _buildKeypadButton('1', onPressed: () => _onKeyPressed('1')),
+                          child: _buildKeypadButton(
+                            '1',
+                            onPressed: () => _onKeyPressed('1'),
+                          ),
                         ),
                         Expanded(
-                          child: _buildKeypadButton('2', sublabel: 'ABC', onPressed: () => _onKeyPressed('2')),
+                          child: _buildKeypadButton(
+                            '2',
+                            sublabel: 'ABC',
+                            onPressed: () => _onKeyPressed('2'),
+                          ),
                         ),
                         Expanded(
-                          child: _buildKeypadButton('3', sublabel: 'DEF', onPressed: () => _onKeyPressed('3')),
-                        ),
-                      ],
-                    ),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildKeypadButton('4', sublabel: 'GHI', onPressed: () => _onKeyPressed('4')),
-                        ),
-                        Expanded(
-                          child: _buildKeypadButton('5', sublabel: 'JKL', onPressed: () => _onKeyPressed('5')),
-                        ),
-                        Expanded(
-                          child: _buildKeypadButton('6', sublabel: 'MNO', onPressed: () => _onKeyPressed('6')),
+                          child: _buildKeypadButton(
+                            '3',
+                            sublabel: 'DEF',
+                            onPressed: () => _onKeyPressed('3'),
+                          ),
                         ),
                       ],
                     ),
                     Row(
                       children: [
                         Expanded(
-                          child: _buildKeypadButton('7', sublabel: 'PQRS', onPressed: () => _onKeyPressed('7')),
+                          child: _buildKeypadButton(
+                            '4',
+                            sublabel: 'GHI',
+                            onPressed: () => _onKeyPressed('4'),
+                          ),
                         ),
                         Expanded(
-                          child: _buildKeypadButton('8', sublabel: 'TUV', onPressed: () => _onKeyPressed('8')),
+                          child: _buildKeypadButton(
+                            '5',
+                            sublabel: 'JKL',
+                            onPressed: () => _onKeyPressed('5'),
+                          ),
                         ),
                         Expanded(
-                          child: _buildKeypadButton('9', sublabel: 'WXYZ', onPressed: () => _onKeyPressed('9')),
+                          child: _buildKeypadButton(
+                            '6',
+                            sublabel: 'MNO',
+                            onPressed: () => _onKeyPressed('6'),
+                          ),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildKeypadButton(
+                            '7',
+                            sublabel: 'PQRS',
+                            onPressed: () => _onKeyPressed('7'),
+                          ),
+                        ),
+                        Expanded(
+                          child: _buildKeypadButton(
+                            '8',
+                            sublabel: 'TUV',
+                            onPressed: () => _onKeyPressed('8'),
+                          ),
+                        ),
+                        Expanded(
+                          child: _buildKeypadButton(
+                            '9',
+                            sublabel: 'WXYZ',
+                            onPressed: () => _onKeyPressed('9'),
+                          ),
                         ),
                       ],
                     ),
@@ -314,16 +349,27 @@ class _SetNewPinScreenState extends State<SetNewPinScreen> {
                           child: _buildSpecialButton(
                             backgroundColor: const Color(0xFF3F51B5),
                             onPressed: _onSubmit,
-                            child: const Icon(Icons.check, color: Colors.white, size: 24),
+                            child: const Icon(
+                              Icons.check,
+                              color: Colors.white,
+                              size: 24,
+                            ),
                           ),
                         ),
                         Expanded(
-                          child: _buildKeypadButton('0', onPressed: () => _onKeyPressed('0')),
+                          child: _buildKeypadButton(
+                            '0',
+                            onPressed: () => _onKeyPressed('0'),
+                          ),
                         ),
                         Expanded(
                           child: _buildSpecialButton(
                             onPressed: () => _onKeyPressed('backspace'),
-                            child: const Icon(Icons.backspace_outlined, color: Colors.black87, size: 24),
+                            child: const Icon(
+                              Icons.backspace_outlined,
+                              color: Colors.black87,
+                              size: 24,
+                            ),
                           ),
                         ),
                       ],

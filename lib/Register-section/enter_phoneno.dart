@@ -1,5 +1,10 @@
+// lib/Login-section/enter_phoneno.dart
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'otp_verify.dart';
 
 class PhoneNumberEntryScreen extends StatefulWidget {
   const PhoneNumberEntryScreen({Key? key}) : super(key: key);
@@ -11,17 +16,15 @@ class PhoneNumberEntryScreen extends StatefulWidget {
 class _PhoneNumberEntryScreenState extends State<PhoneNumberEntryScreen> {
   final TextEditingController _phoneController = TextEditingController();
   final FocusNode _phoneFocusNode = FocusNode();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
   bool _isButtonEnabled = false;
+  bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
     _phoneController.addListener(_onPhoneNumberChanged);
-
-    // Automatically focus the phone field and show keyboard
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      FocusScope.of(context).requestFocus(_phoneFocusNode);
-    });
   }
 
   @override
@@ -42,7 +45,7 @@ class _PhoneNumberEntryScreenState extends State<PhoneNumberEntryScreen> {
     return phoneRegExp.hasMatch(phoneNumber);
   }
 
-  void _onContinuePressed() {
+  void _onContinuePressed() async {
     final phoneNumber = _phoneController.text.trim();
 
     if (!_validatePhoneNumber(phoneNumber)) {
@@ -50,19 +53,87 @@ class _PhoneNumberEntryScreenState extends State<PhoneNumberEntryScreen> {
       return;
     }
 
+    setState(() {
+      _isLoading = true;
+    });
+
     final fullPhoneNumber = '+91$phoneNumber';
 
-    _navigateToOTPScreen(fullPhoneNumber);
+    try {
+      if (kIsWeb) {
+        // Simplified web flow - let Firebase handle reCAPTCHA automatically
+        final confirmationResult = await _auth.signInWithPhoneNumber(fullPhoneNumber);
+        
+        setState(() {
+          _isLoading = false;
+        });
+        
+        _navigateToWebOTPScreen(confirmationResult, fullPhoneNumber);
+      } else {
+        // Mobile flow
+        await _auth.verifyPhoneNumber(
+          phoneNumber: fullPhoneNumber,
+          verificationCompleted: (PhoneAuthCredential credential) async {
+            await _auth.signInWithCredential(credential);
+            _navigateToDashboard();
+          },
+          verificationFailed: (FirebaseAuthException e) {
+            setState(() {
+              _isLoading = false;
+            });
+            _showErrorDialog('Verification failed: ${e.message}');
+          },
+          codeSent: (String verificationId, int? resendToken) {
+            setState(() {
+              _isLoading = false;
+            });
+            _navigateToOTPScreen(verificationId, fullPhoneNumber, resendToken);
+          },
+          codeAutoRetrievalTimeout: (String verificationId) {},
+          timeout: const Duration(seconds: 60),
+        );
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      _showErrorDialog('Error: ${e.toString()}');
+    }
   }
 
-  void _navigateToOTPScreen(String phoneNumber) {
+  void _navigateToWebOTPScreen(ConfirmationResult confirmationResult, String phoneNumber) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => OTPVerificationScreen(
+          verificationId: 'web_confirmation',
+          phoneNumber: phoneNumber,
+          resendToken: null,
+          confirmationResult: confirmationResult,
+        ),
+      ),
+    );
+  }
+
+  void _navigateToOTPScreen(String verificationId, String phoneNumber, int? resendToken) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => OTPVerificationScreen(
+          verificationId: verificationId,
+          phoneNumber: phoneNumber,
+          resendToken: resendToken,
+        ),
+      ),
+    );
+  }
+
+  void _navigateToDashboard() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Navigation Ready'),
-        content: Text(
-          'Phone: $phoneNumber\n\nReady to navigate to OTP screen.\nReplace this dialog with actual navigation.',
-        ),
+        title: const Text('Success!'),
+        content: const Text('Phone number verified successfully!'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -77,7 +148,7 @@ class _PhoneNumberEntryScreenState extends State<PhoneNumberEntryScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Invalid Phone Number'),
+        title: const Text('Error'),
         content: Text(message),
         actions: [
           TextButton(
@@ -117,13 +188,64 @@ class _PhoneNumberEntryScreenState extends State<PhoneNumberEntryScreen> {
             children: [
               const Spacer(flex: 2),
 
-              // TeenPay Logo
-              SizedBox(
+              // Wallet Logo
+              Container(
                 width: 120,
                 height: 80,
-                child: Image.asset(
-                  'assets/login-icons/logo.png',
-                  fit: BoxFit.contain,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Color(0xFF4DD0E1),
+                      Color(0xFF26C6DA),
+                      Color(0xFF00ACC1),
+                      Color(0xFF0097A7),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Stack(
+                  children: [
+                    Positioned(
+                      bottom: 20,
+                      left: 12,
+                      right: 12,
+                      child: Column(
+                        children: [
+                          Container(
+                            height: 2,
+                            color: Colors.white.withOpacity(0.8),
+                          ),
+                          const SizedBox(height: 4),
+                          Container(
+                            height: 2,
+                            width: 80,
+                            color: Colors.white.withOpacity(0.6),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Positioned(
+                      top: 16,
+                      right: 16,
+                      child: Container(
+                        width: 20,
+                        height: 20,
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
 
@@ -140,7 +262,6 @@ class _PhoneNumberEntryScreenState extends State<PhoneNumberEntryScreen> {
 
               const SizedBox(height: 24),
 
-              // Phone number input with +91 prefix
               Container(
                 decoration: BoxDecoration(
                   color: Colors.white,
@@ -212,9 +333,9 @@ class _PhoneNumberEntryScreenState extends State<PhoneNumberEntryScreen> {
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
-                  onPressed: _isButtonEnabled ? _onContinuePressed : null,
+                  onPressed: (_isButtonEnabled && !_isLoading) ? _onContinuePressed : null,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _isButtonEnabled
+                    backgroundColor: (_isButtonEnabled && !_isLoading)
                         ? Colors.blue
                         : Colors.grey.shade400,
                     foregroundColor: Colors.white,
@@ -223,10 +344,19 @@ class _PhoneNumberEntryScreenState extends State<PhoneNumberEntryScreen> {
                     ),
                     elevation: 0,
                   ),
-                  child: const Text(
-                    'Continue',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                  ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text(
+                          'Continue',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                        ),
                 ),
               ),
 
