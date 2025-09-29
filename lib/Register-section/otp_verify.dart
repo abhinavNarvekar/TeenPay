@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
 import '../login_or_register.dart'; // For OtpMode enum
+import '../KYC-section/KYC_intro.dart'; // For OtpMode enum
 
 // TODO: Import your actual dashboard page here
 // import '../Dashboard/dashboard_page.dart';
@@ -157,13 +158,10 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
       //   ),
       // );
     } else if (widget.mode == OtpMode.registration) {
-      // Registration placeholder (KYC page to be added later)
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Registration complete! KYC page coming soon.'),
-        ),
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const KycPage()),
       );
-      Navigator.popUntil(context, (route) => route.isFirst);
     }
   }
 
