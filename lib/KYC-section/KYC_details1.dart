@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart'; // Needed for data saving (Step 2)
+import 'package:teenpay/KYC-section/KYC_details1b.dart';
 
 // Assuming the file for the next step is named 'KYC_details2.dart'
-import 'KYC_details2.dart'; 
+import 'KYC_details2.dart';
 
 // Assuming your Provider class is named 'KycProvider' and is in 'kyc_provider.dart' in the same folder
-import 'kyc_provider.dart'; 
-
+import 'kyc_provider.dart';
 
 class KYCUploadPage extends StatefulWidget {
   // NOTE: I'm assuming KYCUploadPage is the class name for KYC_details1.dart
-  const KYCUploadPage({super.key}); 
+  const KYCUploadPage({super.key});
 
   @override
   _KYCUploadPageState createState() => _KYCUploadPageState();
@@ -53,7 +53,7 @@ class _KYCUploadPageState extends State<KYCUploadPage> {
         context,
         MaterialPageRoute(
           // Ensure KYCDetails2Page is the class name inside your KYC_details2.dart file
-          builder: (context) => const KycIdProofPage(), 
+          builder: (context) => const KYCDetails1Page(),
         ),
       );
     } else {
@@ -64,7 +64,6 @@ class _KYCUploadPageState extends State<KYCUploadPage> {
     }
   }
   // --- FUNCTIONAL NAVIGATION & DATA SAVE LOGIC END ---
-
 
   @override
   Widget build(BuildContext context) {
@@ -97,19 +96,9 @@ class _KYCUploadPageState extends State<KYCUploadPage> {
               child: Row(
                 children: [
                   Expanded(
-                    child: _buildStepIndicator(
-                      'Personal details',
-                      true,
-                      0,
-                    ),
+                    child: _buildStepIndicator('Personal details', true, 0),
                   ),
-                  Expanded(
-                    child: _buildStepIndicator(
-                      'ID proof',
-                      false,
-                      1,
-                    ),
-                  ),
+                  Expanded(child: _buildStepIndicator('ID proof', false, 1)),
                   Expanded(
                     child: _buildStepIndicator(
                       'Your real time photo',
@@ -185,8 +174,8 @@ class _KYCUploadPageState extends State<KYCUploadPage> {
                 height: 56,
                 child: ElevatedButton(
                   // <--- CALLING THE NEW FUNCTION HERE --->
-                  onPressed: () => _handleNext(context), 
-                  
+                  onPressed: () => _handleNext(context),
+
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF008CFF),
                     shape: RoundedRectangleBorder(
@@ -212,7 +201,7 @@ class _KYCUploadPageState extends State<KYCUploadPage> {
   }
 
   // --- Helper Widgets Below (No changes needed here) ---
-  
+
   Widget _buildStepIndicator(String title, bool isActive, int stepIndex) {
     // ... (your existing _buildStepIndicator code) ...
     return Column(
@@ -251,16 +240,10 @@ class _KYCUploadPageState extends State<KYCUploadPage> {
       child: TextFormField(
         controller: controller,
         keyboardType: textInputType,
-        style: const TextStyle(
-          fontSize: 16,
-          color: Colors.black87,
-        ),
+        style: const TextStyle(fontSize: 16, color: Colors.black87),
         decoration: InputDecoration(
           hintText: hintText,
-          hintStyle: const TextStyle(
-            color: Color(0xFF9E9E9E),
-            fontSize: 16,
-          ),
+          hintStyle: const TextStyle(color: Color(0xFF9E9E9E), fontSize: 16),
           filled: true,
           fillColor: const Color(0xFFE6F8FF),
           border: OutlineInputBorder(
@@ -275,7 +258,10 @@ class _KYCUploadPageState extends State<KYCUploadPage> {
             borderRadius: BorderRadius.circular(12),
             borderSide: const BorderSide(color: Color(0xFF008CFF), width: 2),
           ),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 16,
+          ),
         ),
         validator: (value) {
           if (value == null || value.isEmpty) {

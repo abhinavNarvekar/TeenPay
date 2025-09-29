@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'KYC_details2.dart';
 
 class KYCDetails1Page extends StatelessWidget {
   const KYCDetails1Page({Key? key}) : super(key: key);
@@ -12,7 +13,9 @@ class KYCDetails1Page extends StatelessWidget {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () {},
+          onPressed: () {
+            Navigator.pop(context); // Go back
+          },
         ),
         title: const Text(
           'Upload KYC',
@@ -33,11 +36,8 @@ class KYCDetails1Page extends StatelessWidget {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // Progress Indicator
             _buildProgressIndicator(),
             const SizedBox(height: 20),
-            
-            // Main Content Card
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Container(
@@ -67,41 +67,33 @@ class KYCDetails1Page extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 24),
-                      
-                      // Date of Birth Field
                       _buildInputField(
                         label: 'Date of birth',
                         hint: 'DOB IN FORMAT:DD/MM/YYYY',
                       ),
                       const SizedBox(height: 20),
-                      
-                      // Gender Field
-                      _buildInputField(
-                        label: 'Gender',
-                        hint: 'Gender',
-                      ),
+                      _buildInputField(label: 'Gender', hint: 'Gender'),
                       const SizedBox(height: 20),
-                      
-                      // Parent/Guardian Name Field
                       _buildInputField(
                         label: 'Parent/Guardian name',
                         hint: 'Full name',
                       ),
                       const SizedBox(height: 20),
-                      
-                      // Parents Phone No Field
-                      _buildInputField(
-                        label: 'Parents Phone No',
-                        hint: 'P.No',
-                      ),
+                      _buildInputField(label: 'Parents Phone No', hint: 'P.No'),
                       const SizedBox(height: 32),
-                      
-                      // Next Button
                       SizedBox(
                         width: double.infinity,
                         height: 50,
                         child: ElevatedButton(
-                          onPressed: () {},
+                          onPressed: () {
+                            // Navigate to KYCDetails2Page
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const KycIdProofPage(),
+                              ),
+                            );
+                          },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF2196F3),
                             shape: RoundedRectangleBorder(
@@ -187,10 +179,7 @@ class KYCDetails1Page extends StatelessWidget {
         TextFormField(
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: TextStyle(
-              color: Colors.grey.shade400,
-              fontSize: 14,
-            ),
+            hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
             filled: true,
             fillColor: const Color(0xFFE3F2FD),
             border: OutlineInputBorder(
@@ -203,10 +192,7 @@ class KYCDetails1Page extends StatelessWidget {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(
-                color: Color(0xFF2196F3),
-                width: 1,
-              ),
+              borderSide: const BorderSide(color: Color(0xFF2196F3), width: 1),
             ),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 16,
