@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../KYC-section/KYC_intro.dart';
 import '../KYC-section/kyc_provider.dart';
-
+import '../KYC-section/KYC_details1b.dart';
 void main() {
   runApp(
     ChangeNotifierProvider(
@@ -27,7 +27,7 @@ class TeenPayApp extends StatelessWidget {
         useMaterial3: true,
       ),
       // Start with your first KYC page
-      home: const KycPage(), // Replace with your actual first page
+      home: const KYCDetails1Page(), // Replace with your actual first page
     );
   }
 }
