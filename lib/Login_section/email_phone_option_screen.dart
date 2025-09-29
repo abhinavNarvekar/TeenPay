@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:teenpay/login_or_register.dart';
+import 'loginwith_userandpass.dart';
+import '../Register-section/enter_phoneno.dart'; // <-- Import your phone number entry page
 
 class EmailPhoneLoginScreen extends StatefulWidget {
   const EmailPhoneLoginScreen({Key? key}) : super(key: key);
@@ -8,12 +11,16 @@ class EmailPhoneLoginScreen extends StatefulWidget {
 }
 
 class _EmailPhoneLoginScreenState extends State<EmailPhoneLoginScreen> {
-  void _onEmailLoginPressed() {
-    print('Email login pressed');
-  }
-
+  // Navigate to Phone login page
   void _onPhoneLoginPressed() {
-    print('Phone login pressed');
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => PhoneNumberEntryScreen(
+          mode: OtpMode.login,
+        ), // Your phone number entry page
+      ),
+    );
   }
 
   @override
@@ -63,8 +70,6 @@ class _EmailPhoneLoginScreenState extends State<EmailPhoneLoginScreen> {
                       const SizedBox(height: 32),
 
                       // Logo
-                      // Replace this part in your code
-                      // Logo
                       Container(
                         width: 80,
                         height: 80,
@@ -81,7 +86,7 @@ class _EmailPhoneLoginScreenState extends State<EmailPhoneLoginScreen> {
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(12),
                           child: Image.asset(
-                            'assets/login-icons/logo.png', // <-- Put your image here
+                            'assets/login-icons/logo.png',
                             fit: BoxFit.cover,
                           ),
                         ),
@@ -100,11 +105,18 @@ class _EmailPhoneLoginScreenState extends State<EmailPhoneLoginScreen> {
 
                       const SizedBox(height: 40),
 
-                      // Email Login Button
+                      // Username Login Button
                       SizedBox(
                         width: double.infinity,
                         child: InkWell(
-                          onTap: _onEmailLoginPressed,
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => LoginScreen(),
+                              ),
+                            );
+                          },
                           borderRadius: BorderRadius.circular(12),
                           child: Container(
                             padding: const EdgeInsets.all(16),
@@ -129,33 +141,36 @@ class _EmailPhoneLoginScreenState extends State<EmailPhoneLoginScreen> {
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: const Icon(
-                                    Icons.email_outlined,
+                                    Icons.person_outline,
                                     color: Colors.white,
                                     size: 24,
                                   ),
                                 ),
                                 const SizedBox(width: 16),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: const [
-                                    Text(
-                                      'Continue with Email',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white,
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: const [
+                                      Text(
+                                        'Continue with Username',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
                                       ),
-                                    ),
-                                    SizedBox(height: 4),
-                                    Text(
-                                      'Sign in with your email address',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: Colors.white,
+                                      SizedBox(height: 4),
+                                      Text(
+                                        'Sign in with your username and password',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: Colors.white,
+                                        ),
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
                               ],
                             ),
@@ -200,27 +215,30 @@ class _EmailPhoneLoginScreenState extends State<EmailPhoneLoginScreen> {
                                   ),
                                 ),
                                 const SizedBox(width: 16),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: const [
-                                    Text(
-                                      'Continue with Phone',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white,
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: const [
+                                      Text(
+                                        'Continue with Phone',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
                                       ),
-                                    ),
-                                    SizedBox(height: 4),
-                                    Text(
-                                      'Sign in with your phone number',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: Colors.white,
+                                      SizedBox(height: 4),
+                                      Text(
+                                        'Sign in with your phone number',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: Colors.white,
+                                        ),
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
                               ],
                             ),

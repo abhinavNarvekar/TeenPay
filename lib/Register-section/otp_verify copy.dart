@@ -8,7 +8,7 @@ import '../login_or_register.dart'; // For OtpMode enum
 import '../KYC-section/KYC_intro.dart'; // For OtpMode enum
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../Post-kyc-registration/setusername_pass.dart';
-import '../Dashboard/dashboard_temp.dart';
+
 
 // TODO: Import your actual dashboard page here
 // import '../Dashboard/dashboard_page.dart';
@@ -151,74 +151,34 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
   }
 
   void _navigatePostOtp() async {
+    if (widget.mode == OtpMode.login) {
+      // Navigate to dashboard after login
+      // Navigator.push(
+      //   context,
+      //   MaterialPageRoute(
+      //     builder: (context) =>
+      //         const DashboardPage(), // Replace with your actual dashboard widget
+      //   ),
+      // );
+    } else if (widget.mode == OtpMode.registration) {
   final user = _auth.currentUser;
-  if (user == null) return;
-
-  if (widget.mode == OtpMode.login) {
-    bool userExists = false;
-
-    try {
-      final userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
-
-      userExists = userDoc.exists;
-    } catch (e) {
-      print('Firestore read error: $e');
-      userExists = false; // fallback if read fails
-    }
-
-    setState(() => _isVerifying = false);
-
-    if (userExists) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const DashboardScreen(),
-        ),
-      );
-    } else {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const SetDetailsScreen(),
-        ),
-      );
-    }
-  } else if (widget.mode == OtpMode.registration) {
-   try {
-  final userDoc = await FirebaseFirestore.instance
-      .collection('users')
-      .doc(user.uid)
-      .get();
-
-  if (userDoc.exists) {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const DashboardScreen()),
-    );
-  } else {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const SetDetailsScreen()),
-    );
+  if (user != null) {
+    // Create user in Firestore
+    await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+      'uid': user.uid,
+      'phone': user.phoneNumber,
+      'kycStatus': 'pending',
+      'createdAt': FieldValue.serverTimestamp(),
+    });
   }
-} catch (e) {
-  setState(() => _isVerifying = false);
-  _showErrorDialog('Failed to fetch user data: $e');
+
+  // Navigate to KYC page
+  Navigator.pushReplacement(
+    context,
+    MaterialPageRoute(builder: (context) => const SetDetailsScreen()),
+  );
 }
-
-
-    setState(() => _isVerifying = false);
-
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const SetDetailsScreen()),
-    );
   }
-}
-
 
   void _showErrorDialog(String message) {
     showDialog(

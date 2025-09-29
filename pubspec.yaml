@@ -22,6 +22,7 @@ dependencies:
   firebase_auth: ^6.1.0   # For OTP / phone authentication
   firebase_analytics: ^12.0.2  # Optional
   cloud_firestore: ^6.0.2    # Optional
+  crypto: ^3.0.6
 
 dev_dependencies:
   flutter_test:
