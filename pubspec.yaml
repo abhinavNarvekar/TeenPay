@@ -11,13 +11,17 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.8
+  google_fonts: ^6.1.0
+
+  # ---------------- State management & utilities ----------------
+  provider: ^6.0.5
+  image_picker: ^1.2.0
 
   # ---------------- Firebase packages ----------------
-  firebase_core: ^4.1.1 # Required to initialize Firebase
-  firebase_auth: ^6.1.0    # For OTP / phone authentication
-  # firebase_analytics: ^10.7.0  # Optional, for analytics (you already added it in Gradle)
-  # cloud_firestore: ^5.16.0      # Optional: if you want database functionality
-  # ---------------------------------------------------
+  firebase_core: ^4.1.1   # Required to initialize Firebase
+  firebase_auth: ^6.1.0   # For OTP / phone authentication
+  # firebase_analytics: ^10.7.0  # Optional
+  # cloud_firestore: ^5.16.0     # Optional
 
 dev_dependencies:
   flutter_test:
@@ -29,3 +33,4 @@ flutter:
 
   assets:
     - assets/login-icons/
+    - assets/KYC-icons/

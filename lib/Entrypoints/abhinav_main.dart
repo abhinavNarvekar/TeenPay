@@ -8,7 +8,6 @@ import '../Register-section/enter_phoneno.dart';
 import '../Register-section/set_tpin.dart';
 import '../Login_section/email_phone_option_screen.dart';
 
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -28,10 +27,10 @@ class MyApp extends StatelessWidget {
       title: 'TeenPay',
       theme: ThemeData(primarySwatch: Colors.blue),
       // home: PhoneNumberEntryScreen(), // your first screen
-      // home:WelcomeScreen(),
-      home: SetNewPinScreen(),
-      // home: EmailPhoneLoginScreen(),
+      home: WelcomeScreen(),
 
+      // home: SetNewPinScreen(),
+      // home: EmailPhoneLoginScreen(),
     );
   }
 }
