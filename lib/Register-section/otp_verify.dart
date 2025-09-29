@@ -6,6 +6,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
 import '../login_or_register.dart'; // For OtpMode enum
 import '../KYC-section/KYC_intro.dart'; // For OtpMode enum
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 
 // TODO: Import your actual dashboard page here
 // import '../Dashboard/dashboard_page.dart';
@@ -147,7 +149,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
     _focusNodes[0].requestFocus();
   }
 
-  void _navigatePostOtp() {
+  void _navigatePostOtp() async {
     if (widget.mode == OtpMode.login) {
       // Navigate to dashboard after login
       // Navigator.push(
@@ -158,11 +160,22 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
       //   ),
       // );
     } else if (widget.mode == OtpMode.registration) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const KycPage()),
-      );
-    }
+  final user = _auth.currentUser;
+  if (user != null) {
+    // Create user in Firestore
+    await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+      'phone': user.phoneNumber,
+      'kycStatus': 'pending',
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  // Navigate to KYC page
+  Navigator.pushReplacement(
+    context,
+    MaterialPageRoute(builder: (context) => const KycPage()),
+  );
+}
   }
 
   void _showErrorDialog(String message) {
