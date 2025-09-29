@@ -1,9 +1,4 @@
 import 'package:flutter/material.dart';
-import '../Register-section/enter_phoneno.dart'; // your registration phone number page
-import '../Login_section/email_phone_option_screen.dart'; // your login email/phone selection page
-
-// Enum to pass the OTP mode (optional, if needed in EnterPhoneNoPage)
-enum OtpMode { registration, login }
 
 class LoginOrRegisterScreen extends StatelessWidget {
   const LoginOrRegisterScreen({Key? key}) : super(key: key);
@@ -11,13 +6,15 @@ class LoginOrRegisterScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFE0FFFF), // Light blue background
+      backgroundColor: const Color(0xFFE0FFFF),  // Light blue background
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            Navigator.pop(context);
+          },
         ),
         title: const Text(
           'Welcome Back',
@@ -28,6 +25,17 @@ class LoginOrRegisterScreen extends StatelessWidget {
           ),
         ),
         centerTitle: true,
+        actions: [
+          // The blue box from the previous version, commented out.
+          // Container(
+          //   margin: const EdgeInsets.only(right: 16),
+          //   padding: const EdgeInsets.all(8),
+          //   decoration: BoxDecoration(
+          //     color: Colors.blue,
+          //     borderRadius: BorderRadius.circular(8),
+          //   ),
+          // ),
+        ],
       ),
       body: SafeArea(
         child: Padding(
@@ -35,16 +43,18 @@ class LoginOrRegisterScreen extends StatelessWidget {
           child: Column(
             children: [
               const Spacer(flex: 2),
-
-              // Logo
+              
+              // Your custom logo is now added here.
+              // Make sure to add your image file to the assets/images folder
+              // and update your pubspec.yaml file.
               Image.asset(
-                'assets/login-icons/logo.png', // replace with your logo path
-                width: 120,
-                height: 80,
+                'assets/login-icons/logo.png', // <-- REPLACE WITH YOUR IMAGE PATH
+                width: 120, // Adjust size as needed
+                height: 80, // Adjust size as needed
               ),
-
+              
               const SizedBox(height: 32),
-
+              
               // App Name
               const Text(
                 'TeenPay',
@@ -54,28 +64,28 @@ class LoginOrRegisterScreen extends StatelessWidget {
                   color: Colors.black,
                 ),
               ),
-
+              
               const Spacer(flex: 3),
-
+              
               // Existing customer section
               const Text(
                 'If already existing customer',
-                style: TextStyle(fontSize: 16, color: Colors.grey),
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey,
+                ),
               ),
+              
               const SizedBox(height: 16),
-
+              
               // Login Button
               SizedBox(
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
                   onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const EmailPhoneLoginScreen(),
-                      ),
-                    );
+                    // Handle login action
+                    print('Login pressed');
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue,
@@ -87,33 +97,35 @@ class LoginOrRegisterScreen extends StatelessWidget {
                   ),
                   child: const Text(
                     'Login',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),
-
+              
               const SizedBox(height: 32),
-
+              
               // New customer section
               const Text(
                 'If new customer, then register',
-                style: TextStyle(fontSize: 16, color: Colors.grey),
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey,
+                ),
               ),
+              
               const SizedBox(height: 16),
-
+              
               // Register Button
               SizedBox(
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
                   onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            const PhoneNumberEntryScreen(mode: OtpMode.registration),
-                      ),
-                    );
+                    // Handle register action
+                    print('Register pressed');
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue,
@@ -125,19 +137,25 @@ class LoginOrRegisterScreen extends StatelessWidget {
                   ),
                   child: const Text(
                     'Register',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),
-
+              
               const Spacer(flex: 2),
-
+              
               // Terms text
               Padding(
                 padding: const EdgeInsets.only(bottom: 32),
                 child: Text(
                   'By continuing, you agree to our Terms of Service and that\nyou have parental approval',
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade600,
+                  ),
                   textAlign: TextAlign.center,
                 ),
               ),

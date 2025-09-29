@@ -28,8 +28,8 @@ class MyApp extends StatelessWidget {
       title: 'TeenPay',
       theme: ThemeData(primarySwatch: Colors.blue),
       // home: PhoneNumberEntryScreen(), // your first screen
-      home:WelcomeScreen(),
-      // home: SetNewPinScreen(),
+      // home:WelcomeScreen(),
+      home: SetNewPinScreen(),
       // home: EmailPhoneLoginScreen(),
 
     );

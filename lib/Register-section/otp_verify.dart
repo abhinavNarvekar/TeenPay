@@ -4,12 +4,17 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
+import '../login_or_register.dart'; // For OtpMode enum
+
+// TODO: Import your actual dashboard page here
+// import '../Dashboard/dashboard_page.dart';
 
 class OTPVerificationScreen extends StatefulWidget {
   final String verificationId;
   final String phoneNumber;
   final int? resendToken;
   final ConfirmationResult? confirmationResult; // For web
+  final OtpMode mode; // Login or Registration mode
 
   const OTPVerificationScreen({
     Key? key,
@@ -17,6 +22,7 @@ class OTPVerificationScreen extends StatefulWidget {
     required this.phoneNumber,
     this.resendToken,
     this.confirmationResult,
+    required this.mode,
   }) : super(key: key);
 
   @override
@@ -68,19 +74,14 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
   }
 
   void _onDigitChanged(int index, String value) {
-    if (value.isNotEmpty && index < 5) {
-      _focusNodes[index + 1].requestFocus();
-    }
-    if (_controllers.every((c) => c.text.isNotEmpty)) {
-      _verifyOTP();
-    }
+    if (value.isNotEmpty && index < 5) _focusNodes[index + 1].requestFocus();
+    if (_controllers.every((c) => c.text.isNotEmpty)) _verifyOTP();
   }
 
   void _onKeyboardTap(String value) {
     int currentIndex = _focusNodes.indexWhere((node) => node.hasFocus);
-    if (currentIndex == -1) {
+    if (currentIndex == -1)
       currentIndex = _controllers.indexWhere((c) => c.text.isEmpty);
-    }
 
     if (currentIndex != -1 && currentIndex < 6) {
       if (value == '⌫') {
@@ -95,47 +96,35 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
         if (currentIndex < 5) _focusNodes[currentIndex + 1].requestFocus();
       }
 
-      if (_controllers.every((c) => c.text.isNotEmpty)) {
-        _verifyOTP();
-      }
+      if (_controllers.every((c) => c.text.isNotEmpty)) _verifyOTP();
     }
   }
 
   void _verifyOTP() async {
     final otp = _controllers.map((c) => c.text).join();
-
-    setState(() {
-      _isVerifying = true;
-    });
+    setState(() => _isVerifying = true);
 
     try {
       if (kIsWeb && widget.confirmationResult != null) {
-        // Web verification using ConfirmationResult
         await widget.confirmationResult!.confirm(otp);
-        _navigateToDashboard();
+        _navigatePostOtp();
       } else {
-        // Mobile verification using PhoneAuthCredential
         final credential = PhoneAuthProvider.credential(
           verificationId: _currentVerificationId,
           smsCode: otp,
         );
-
         await _auth.signInWithCredential(credential);
-        _navigateToDashboard();
+        _navigatePostOtp();
       }
     } on FirebaseAuthException catch (e) {
-      setState(() {
-        _isVerifying = false;
-      });
-
+      setState(() => _isVerifying = false);
       String errorMessage;
+
       switch (e.code) {
         case 'invalid-verification-code':
           errorMessage = 'Invalid OTP code. Please try again.';
           break;
         case 'session-expired':
-          errorMessage = 'OTP session expired. Please resend code.';
-          break;
         case 'code-expired':
           errorMessage = 'OTP code has expired. Please resend code.';
           break;
@@ -146,38 +135,36 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
       _showErrorDialog(errorMessage);
       _clearOTP();
     } catch (e) {
-      setState(() {
-        _isVerifying = false;
-      });
+      setState(() => _isVerifying = false);
       _showErrorDialog('An error occurred: ${e.toString()}');
       _clearOTP();
     }
   }
 
   void _clearOTP() {
-    for (var controller in _controllers) {
-      controller.clear();
-    }
+    for (var controller in _controllers) controller.clear();
     _focusNodes[0].requestFocus();
   }
 
-  void _navigateToDashboard() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Success!'),
-        content: Text('Welcome to TeenPay!\nPhone: ${widget.phoneNumber}'),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pop(context); // Go back to main screen
-            },
-            child: const Text('Continue'),
-          ),
-        ],
-      ),
-    );
+  void _navigatePostOtp() {
+    if (widget.mode == OtpMode.login) {
+      // Navigate to dashboard after login
+      // Navigator.push(
+      //   context,
+      //   MaterialPageRoute(
+      //     builder: (context) =>
+      //         const DashboardPage(), // Replace with your actual dashboard widget
+      //   ),
+      // );
+    } else if (widget.mode == OtpMode.registration) {
+      // Registration placeholder (KYC page to be added later)
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Registration complete! KYC page coming soon.'),
+        ),
+      );
+      Navigator.popUntil(context, (route) => route.isFirst);
+    }
   }
 
   void _showErrorDialog(String message) {
@@ -199,7 +186,6 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
   void _resendCode() async {
     try {
       if (kIsWeb) {
-        // Web resend logic - need to go back to phone entry screen
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Please go back and request a new code'),
@@ -207,12 +193,11 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
         );
         Navigator.pop(context);
       } else {
-        // Mobile resend logic
         await _auth.verifyPhoneNumber(
           phoneNumber: widget.phoneNumber,
           verificationCompleted: (PhoneAuthCredential credential) async {
             await _auth.signInWithCredential(credential);
-            _navigateToDashboard();
+            _navigatePostOtp();
           },
           verificationFailed: (FirebaseAuthException e) {
             _showErrorDialog('Resend failed: ${e.message}');
@@ -225,7 +210,6 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
             });
             _timer.cancel();
             _startCountdown();
-
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('OTP code resent successfully!')),
             );
@@ -280,17 +264,14 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 40),
-
                   if (_isVerifying)
                     Column(
-                      children: [
-                        const CircularProgressIndicator(),
-                        const SizedBox(height: 16),
+                      children: const [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 16),
                         Text(
-                          kIsWeb
-                              ? 'Verifying with Firebase...'
-                              : 'Verifying OTP...',
-                          style: const TextStyle(color: Colors.grey),
+                          'Verifying OTP...',
+                          style: TextStyle(color: Colors.grey),
                         ),
                       ],
                     )
@@ -326,7 +307,6 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                         );
                       }),
                     ),
-
                   const SizedBox(height: 30),
                   Text(
                     _formattedTime,
@@ -352,7 +332,6 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
               ),
             ),
           ),
-
           // Custom Numeric Keyboard
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
