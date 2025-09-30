@@ -5,9 +5,9 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb; 
 import 'dart:io'; 
 
-// --- FIREBASE IMPORTS ---
+// --- FIREBASE IMPORTS (Storage imports REMOVED) ---
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+// Note: firebase_storage is NOT imported here
 // --------------------------
 
 // Import your provider file
@@ -30,31 +30,11 @@ class _KYCLivePhotoPageState extends State<KYCLivePhotoPage> {
   static const Color primaryBlue = Color(0xFF008CFF);
 
 
-  // --- Helper Function for Firebase Storage Upload ---
-  Future<String?> _uploadImage(String path, Uint8List? bytes, String storagePath) async {
-    // Check if we have data to upload (either a real path OR bytes)
-    if (path.isEmpty && bytes == null) return null;
-
-    final ref = FirebaseStorage.instance.ref().child('kyc_uploads').child(storagePath);
-    
-    final UploadTask uploadTask;
-    
-    if (kIsWeb && bytes != null) {
-      // Web/Desktop Upload
-      uploadTask = ref.putData(bytes);
-    } else if (path.isNotEmpty) {
-      // Mobile Upload
-      uploadTask = ref.putFile(File(path));
-    } else {
-      return null;
-    }
-    
-    final snapshot = await uploadTask.whenComplete(() {});
-    return await snapshot.ref.getDownloadURL();
-  }
+  // --- Helper Function for Firebase Storage Upload (REMOVED) ---
+  // The functionality is now integrated directly into _handleSubmit using placeholders.
 
 
-  // --- FUNCTIONAL LOGIC FOR LIVE PHOTO CAPTURE ---
+  // --- FUNCTIONAL LOGIC FOR LIVE PHOTO CAPTURE (UNCHANGED) ---
   Future<void> _captureLivePhoto(BuildContext context) async {
     final XFile? livePhoto = await _picker.pickImage(
       source: ImageSource.camera, 
@@ -88,7 +68,7 @@ class _KYCLivePhotoPageState extends State<KYCLivePhotoPage> {
   }
 
 
-  // --- FINAL SUBMISSION LOGIC (Updated to pull all 8 fields) ---
+  // --- FINAL SUBMISSION LOGIC (Bypasses Storage and uses Placeholders) ---
   void _handleSubmit(BuildContext context) async {
     if (!_photoTaken) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -103,11 +83,10 @@ class _KYCLivePhotoPageState extends State<KYCLivePhotoPage> {
 
     final kycProvider = Provider.of<KycProvider>(context, listen: false);
     
-    // CRITICAL: Get User ID/Contact
-    // Using contact as the document ID because it must be unique and is available from the form.
+    // Using contact as the document ID
     final userId = kycProvider.contact.isNotEmpty ? kycProvider.contact : 'kyc_doc_${DateTime.now().millisecondsSinceEpoch}';
 
-    // Validation Check (Will fail if fields on page 1 or 2 were skipped)
+    // Validation Check (Will fail if contact/image flags were missed in Page 1 or 2)
     if (!kycProvider.isReadyForSubmission) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Submission Error: Missing data from previous steps.'), backgroundColor: Colors.red),
@@ -117,53 +96,47 @@ class _KYCLivePhotoPageState extends State<KYCLivePhotoPage> {
     }
     
     try {
-      // 1. Upload Images to Firebase Storage (Uploading all three potential files)
-      final frontImageUrl = await _uploadImage(kycProvider.frontImagePath, kycProvider.frontImageBytes, '$userId/front_id');
-      final livePhotoUrl = await _uploadImage(kycProvider.livePhotoPath, kycProvider.livePhotoBytes, '$userId/live_photo');
+      // --- CRITICAL FIX: SKIP UPLOAD AND USE PLACEHOLDER URLS ---
+      const String PLACEHOLDER_URL = "https://teenpay.com/storage/kyc-placeholder.jpg";
       
-      String? backImageUrl;
-      if (kycProvider.backImagePath.isNotEmpty || kycProvider.backImageBytes != null) {
-          backImageUrl = await _uploadImage(kycProvider.backImagePath, kycProvider.backImageBytes, '$userId/back_id');
-      }
-
-      // 2. Prepare the COMPLETE Data Map for the Firestore KYC collection
+      // 1. Prepare the COMPLETE Data Map for the Firestore KYC collection
       final kycData = {
           // Identifiers & Status
           'userId': userId,
           'submissionDate': FieldValue.serverTimestamp(),
-          'kycStatus': 'Pending Verification',
+          'kycStatus': 'DETAILS SUBMITTED (Images Pending Demo)', // Status update
           
-          // --- ALL 8 PERSONAL DETAILS (Now saved from KYC_details1b) ---
+          // --- ALL 8 PERSONAL DETAILS ---
           'name': kycProvider.name,
           'contact': kycProvider.contact,
           'email': kycProvider.email,
           'pincode': kycProvider.pincode,
           'dateOfBirth': kycProvider.dateOfBirth, 
-          'gender': kycProvider.gender,         
+          'gender': kycProvider.gender,  
           'parentName': kycProvider.parentName, 
           'parentPhone': kycProvider.parentPhone,
           
-          // --- DOCUMENT & IMAGE DATA ---
+          // --- DOCUMENT & IMAGE DATA (Using Static Placeholder URLs) ---
           'documentType': kycProvider.documentType,
-          'frontImageUrl': frontImageUrl,
-          'backImageUrl': backImageUrl, 
-          'livePhotoUrl': livePhotoUrl,
+          'frontImageUrl': PLACEHOLDER_URL, 
+          'backImageUrl': PLACEHOLDER_URL, 
+          'livePhotoUrl': PLACEHOLDER_URL, 
       };
 
-      // 3. Write Data to Firestore
+      // 2. Write Data to Firestore (Should be instantaneous)
       await FirebaseFirestore.instance
           .collection('KYC') 
           .doc(userId)
           .set(kycData);
 
-      // 4. Success & Cleanup
+      // 3. Success & Cleanup
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('✅ KYC Submission Successful! Document created in Firestore.'), backgroundColor: primaryBlue),
+          const SnackBar(content: Text('✅ KYC Submission Successful! Data written to Firestore.'), backgroundColor: Colors.green),
       );
       kycProvider.resetKycData();
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Submission Failed: ${e.toString()}'), backgroundColor: Colors.red),
+          SnackBar(content: Text('Submission Failed: Firestore Write Error: ${e.toString()}'), backgroundColor: Colors.red),
       );
     } finally {
       setState(() { _isSubmitting = false; });
@@ -173,7 +146,9 @@ class _KYCLivePhotoPageState extends State<KYCLivePhotoPage> {
 
   @override
   Widget build(BuildContext context) {
-    // ... (rest of the build method is unchanged)
+    // ... (Build method remains the same)
+    const Color primaryBlue = Color(0xFF008CFF);
+    
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
