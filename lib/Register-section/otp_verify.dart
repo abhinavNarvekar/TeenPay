@@ -151,74 +151,68 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
   }
 
   void _navigatePostOtp() async {
-  final user = _auth.currentUser;
-  if (user == null) return;
+    final user = _auth.currentUser;
+    if (user == null) return;
 
-  if (widget.mode == OtpMode.login) {
-    bool userExists = false;
+    if (widget.mode == OtpMode.login) {
+      bool userExists = false;
 
-    try {
-      final userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
+      try {
+        final userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
 
-      userExists = userDoc.exists;
-    } catch (e) {
-      print('Firestore read error: $e');
-      userExists = false; // fallback if read fails
-    }
+        userExists = userDoc.exists;
+      } catch (e) {
+        print('Firestore read error: $e');
+        userExists = false; // fallback if read fails
+      }
 
-    setState(() => _isVerifying = false);
+      setState(() => _isVerifying = false);
 
-    if (userExists) {
+      if (userExists) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const DashboardScreen()),
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const KycPage()),
+        );
+      }
+    } else if (widget.mode == OtpMode.registration) {
+      try {
+        final userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+
+        if (userDoc.exists) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const DashboardScreen()),
+          );
+        } else {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const KycPage()),
+          );
+        }
+      } catch (e) {
+        setState(() => _isVerifying = false);
+        _showErrorDialog('Failed to fetch user data: $e');
+      }
+
+      setState(() => _isVerifying = false);
+
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(
-          builder: (_) => const DashboardScreen(),
-        ),
-      );
-    } else {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const SetDetailsScreen(),
-        ),
+        MaterialPageRoute(builder: (_) => const KycPage()),
       );
     }
-  } else if (widget.mode == OtpMode.registration) {
-   try {
-  final userDoc = await FirebaseFirestore.instance
-      .collection('users')
-      .doc(user.uid)
-      .get();
-
-  if (userDoc.exists) {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const DashboardScreen()),
-    );
-  } else {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const SetDetailsScreen()),
-    );
   }
-} catch (e) {
-  setState(() => _isVerifying = false);
-  _showErrorDialog('Failed to fetch user data: $e');
-}
-
-
-    setState(() => _isVerifying = false);
-
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const SetDetailsScreen()),
-    );
-  }
-}
-
 
   void _showErrorDialog(String message) {
     showDialog(
