@@ -7,6 +7,7 @@ import 'kyc_provider.dart';
 class KYCUploadPage extends StatefulWidget {
   const KYCUploadPage({super.key});
 
+  
   @override
   _KYCUploadPageState createState() => _KYCUploadPageState();
 }
@@ -268,4 +269,5 @@ class _KYCUploadPageState extends State<KYCUploadPage> {
       ),
     );
   }
+
 }
