@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class SetNewPinScreen extends StatefulWidget {
   const SetNewPinScreen({Key? key}) : super(key: key);
@@ -12,14 +14,37 @@ class _SetNewPinScreenState extends State<SetNewPinScreen> {
   String _secondPin = '';
   bool _isFirstPinComplete = false;
   bool _isSecondPinActive = false;
+  bool _isSubmitting = false;
+
+  String? _username; // will fetch from users collection
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUsername();
+  }
+
+  Future<void> _fetchUsername() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    final doc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .get();
+    if (doc.exists) {
+      setState(() {
+        _username = doc['username']; // assumes 'username' field exists
+      });
+    }
+  }
 
   void _onKeyPressed(String value) {
     setState(() {
       if (!_isFirstPinComplete) {
         if (value == 'backspace') {
-          if (_firstPin.isNotEmpty) {
+          if (_firstPin.isNotEmpty)
             _firstPin = _firstPin.substring(0, _firstPin.length - 1);
-          }
         } else if (_firstPin.length < 6) {
           _firstPin += value;
           if (_firstPin.length == 6) {
@@ -43,16 +68,47 @@ class _SetNewPinScreenState extends State<SetNewPinScreen> {
     });
   }
 
-  void _onSubmit() {
+  Future<void> _onSubmit() async {
+    if (_username == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Username not loaded yet. Please wait.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
     if (_firstPin.length == 6 && _secondPin.length == 6) {
       if (_firstPin == _secondPin) {
-        print('PIN set successfully: $_firstPin');
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('PIN set successfully!'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        setState(() => _isSubmitting = true);
+        try {
+          final walletRef = FirebaseFirestore.instance
+              .collection('wallets')
+              .doc(_username);
+
+          await walletRef.set({
+            'username': _username,
+            'tPin': _firstPin,
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✅ T-Pin set successfully!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } catch (e) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error saving T-Pin: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        } finally {
+          setState(() => _isSubmitting = false);
+        }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -131,9 +187,9 @@ class _SetNewPinScreenState extends State<SetNewPinScreen> {
               label,
               style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w600),
             ),
-            const SizedBox(height: 4), // spacing for alignment
+            const SizedBox(height: 4),
             Text(
-              sublabel ?? '', // ensures all numbers align
+              sublabel ?? '',
               style: TextStyle(
                 fontSize: 10,
                 color: Colors.grey.shade600,
@@ -196,10 +252,12 @@ class _SetNewPinScreenState extends State<SetNewPinScreen> {
           child: Column(
             children: [
               const SizedBox(height: 30),
-              const Text(
-                'Welcome back Abhinav,\nPlease set a new T-Pin',
+              Text(
+                _username != null
+                    ? 'Welcome back $_username,\nPlease set a new T-Pin'
+                    : 'Loading username...',
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                   color: Colors.black87,
@@ -230,9 +288,7 @@ class _SetNewPinScreenState extends State<SetNewPinScreen> {
               Align(
                 alignment: Alignment.centerLeft,
                 child: GestureDetector(
-                  onTap: () {
-                    print('Forgot PIN tapped');
-                  },
+                  onTap: () => print('Forgot PIN tapped'),
                   child: Container(
                     decoration: const BoxDecoration(
                       border: Border(
@@ -349,11 +405,20 @@ class _SetNewPinScreenState extends State<SetNewPinScreen> {
                           child: _buildSpecialButton(
                             backgroundColor: const Color(0xFF3F51B5),
                             onPressed: _onSubmit,
-                            child: const Icon(
-                              Icons.check,
-                              color: Colors.white,
-                              size: 24,
-                            ),
+                            child: _isSubmitting
+                                ? const SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(
+                                    Icons.check,
+                                    color: Colors.white,
+                                    size: 24,
+                                  ),
                           ),
                         ),
                         Expanded(

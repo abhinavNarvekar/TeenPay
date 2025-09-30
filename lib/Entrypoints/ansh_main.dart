@@ -27,9 +27,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Initialize Firebase
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   // Run the app with Provider at the root
   runApp(
@@ -54,8 +52,7 @@ class TeenPayApp extends StatelessWidget {
         useMaterial3: true,
       ),
       // Entry screen of your app
-      home: const WelcomeScreen(),
+      home: const SetNewPinScreen(),
     );
   }
 }
-
