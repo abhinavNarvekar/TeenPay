@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'KYC_details2.dart';
 import 'kyc_provider.dart';
+import 'kyc_details2.dart';
 
-// --- GLOBAL COLORS ---
+// --- GLOBAL COLORS (Kept for styling) ---
 const Color primaryBlue = Color(0xFF2196F3);
 const Color fillColor = Color(0xFFE3F2FD);
 const Color darkTextColor = Colors.black87;
 const Color inactiveColor = Color(0xFFA0A0A0);
 const Color inactiveBarColor = Color(0xFFE0E0E0);
+// ----------------------------------------
 
 class KycDetails1bPage extends StatefulWidget {
   const KycDetails1bPage({super.key});
@@ -26,27 +27,8 @@ class _KycDetails1bPageState extends State<KycDetails1bPage> {
   final _parentNameController = TextEditingController();
   final _parentPhoneController = TextEditingController();
 
-  // Preserved data from previous page
-  String _name = '';
-  String _contact = '';
-  String _email = '';
-  String _pincode = '';
-
-  @override
-  void initState() {
-    super.initState();
-    // Load previous data once the widget is ready
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final kycProvider = Provider.of<KycProvider>(context, listen: false);
-      setState(() {
-        _name = kycProvider.name;
-        _contact = kycProvider.contact;
-        _email = kycProvider.email;
-        _pincode = kycProvider.pincode;
-      });
-      print('DEBUG: Loaded previous data. Contact: $_contact');
-    });
-  }
+  // --- Removed initState and local String variables to prevent async race condition ---
+  // The BuildContext will now read data directly from the Provider via Consumer.
 
   @override
   void dispose() {
@@ -57,22 +39,26 @@ class _KycDetails1bPageState extends State<KycDetails1bPage> {
     super.dispose();
   }
 
-  void _handleNext(BuildContext context) {
+  // --- Data Saving and Navigation Logic (UPDATED) ---
+  // This now accepts the pre-filled data directly from the Provider's current state.
+  void _handleNext(BuildContext context, KycProvider kycProvider) {
     if (_formKey.currentState!.validate()) {
-      final kycProvider = Provider.of<KycProvider>(context, listen: false);
 
-      // Update all 8 fields in provider
+      // Save ALL 8 fields now, reading the pre-filled data directly from the provider object
       kycProvider.updatePersonalDetails(
-        newName: _name,
-        newContact: _contact,
-        newEmail: _email,
-        newPincode: _pincode,
+        // Preserve data from KYC_details1 by reading Provider's current state
+        newName: kycProvider.name, 
+        newContact: kycProvider.contact, 
+        newEmail: kycProvider.email, 
+        newPincode: kycProvider.pincode, 
+        
+        // Save new data collected on THIS page
         newDob: _dobController.text,
         newGender: _genderController.text,
         newParentName: _parentNameController.text,
         newParentPhone: _parentPhoneController.text,
       );
-
+      
       // Navigate to next page (ID Proof)
       Navigator.push(
         context,
@@ -87,81 +73,91 @@ class _KycDetails1bPageState extends State<KycDetails1bPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          'Upload KYC',
-          style: TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.w600),
-        ),
-        centerTitle: true,
-      ),
-      body: Form(
-        key: _formKey,
-        child: Column(
-          children: [
-            _buildProgressIndicator(),
-            const SizedBox(height: 20),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildLabel('Date of Birth'),
-                      _buildInputField(controller: _dobController, hint: 'DD/MM/YYYY', keyboardType: TextInputType.datetime),
-                      const SizedBox(height: 20),
+    // CRITICAL FIX: Use Consumer to get the Provider data instantly in the build method.
+    return Consumer<KycProvider>(
+      builder: (context, kycProvider, child) {
+        
+        // Use debug print to confirm critical data is loaded before button press
+        print('DEBUG BUILD: Contact field status: ${kycProvider.contact.isNotEmpty ? 'LOADED' : 'MISSING'}');
 
-                      _buildLabel('Gender'),
-                      _buildInputField(controller: _genderController, hint: 'Gender'),
-                      const SizedBox(height: 20),
+        return Scaffold(
+          backgroundColor: Colors.white,
+          appBar: AppBar(
+            backgroundColor: Colors.white,
+            elevation: 0,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back, color: Colors.black),
+              onPressed: () => Navigator.pop(context),
+            ),
+            title: const Text('Upload KYC', style: TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.w600)),
+            centerTitle: true,
+          ),
+          body: Form(
+            key: _formKey,
+            child: Column(
+              children: [
+                _buildProgressIndicator(),
+                const SizedBox(height: 20),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Enter Your Details', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: darkTextColor)),
+                          const SizedBox(height: 24),
 
-                      _buildLabel('Parent/Guardian Name'),
-                      _buildInputField(controller: _parentNameController, hint: 'Full Name'),
-                      const SizedBox(height: 20),
-
-                      _buildLabel('Parent Phone Number'),
-                      _buildInputField(controller: _parentPhoneController, hint: 'Phone', keyboardType: TextInputType.phone),
-                      const SizedBox(height: 32),
-                    ],
+                          // --- VISIBLE FIELDS ---
+                          _buildLabel('Date of Birth'),
+                          _buildInputField(controller: _dobController, hint: 'DD/MM/YYYY', keyboardType: TextInputType.datetime),
+                          const SizedBox(height: 20),
+                          
+                          _buildLabel('Gender'),
+                          _buildInputField(controller: _genderController, hint: 'Gender'),
+                          const SizedBox(height: 20),
+                          
+                          _buildLabel('Parent/Guardian name'),
+                          _buildInputField(controller: _parentNameController, hint: 'Full Name'),
+                          const SizedBox(height: 20),
+                          
+                          _buildLabel('Parents Phone No'),
+                          _buildInputField(controller: _parentPhoneController, hint: 'P.No', keyboardType: TextInputType.phone),
+                          const SizedBox(height: 32),
+                          // ----------------------
+                        ],
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
-
-            // Next Button
-            Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: () => _handleNext(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryBlue,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    elevation: 0,
-                  ),
-                  child: const Text(
-                    'Next',
-                    style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                
+                // Next Button
+                Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      // CRITICAL: Pass the kycProvider instance to the handler
+                      onPressed: () => _handleNext(context, kycProvider), 
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: primaryBlue,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        elevation: 0,
+                      ),
+                      child: const Text('Next', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                    ),
                   ),
                 ),
-              ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      }
     );
   }
 
+  // --- Helper Widgets (Unchanged) ---
   Widget _buildProgressIndicator() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
@@ -204,7 +200,7 @@ class _KycDetails1bPageState extends State<KycDetails1bPage> {
           fillColor: fillColor,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
           enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
-          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: primaryBlue, width: 1)),
+          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: primaryBlue, width: 1)),
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         ),
       ),
