@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../Dashboard/dashboard_temp.dart';
 
 class SetNewPinScreen extends StatefulWidget {
   const SetNewPinScreen({Key? key}) : super(key: key);
@@ -99,6 +100,14 @@ class _SetNewPinScreenState extends State<SetNewPinScreen> {
               backgroundColor: Colors.green,
             ),
           );
+
+          // Navigate to dashboard after a short delay
+          Future.delayed(const Duration(milliseconds: 500), () {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const DashboardScreen()),
+            );
+          });
         } catch (e) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
