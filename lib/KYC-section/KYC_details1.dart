@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-// Note: This import path is specific to your structure:
-import '../KYC-section/KYC_details1b.dart'; // Corrected import path
+import 'package:teenpay/KYC-section/KYC_details1b.dart'; 
 import 'kyc_provider.dart';
 
 class KYCUploadPage extends StatefulWidget {
   const KYCUploadPage({super.key});
 
-  
   @override
   _KYCUploadPageState createState() => _KYCUploadPageState();
 }
@@ -15,13 +13,11 @@ class KYCUploadPage extends StatefulWidget {
 class _KYCUploadPageState extends State<KYCUploadPage> {
   final _formKey = GlobalKey<FormState>();
   
-  // --- IMPORTANT: Removed static placeholder text! ---
-  // The user will enter this data.
+  // Controllers
   final _nameController = TextEditingController(); 
   final _contactController = TextEditingController(); 
   final _emailController = TextEditingController(); 
   final _pincodeController = TextEditingController(); 
-  // ----------------------------------------------------
 
   @override
   void dispose() {
@@ -36,24 +32,24 @@ class _KYCUploadPageState extends State<KYCUploadPage> {
   void _handleNext(BuildContext context) {
     if (_formKey.currentState!.validate()) {
       
-      // ✅ Save entered details into provider
       final kycProvider = Provider.of<KycProvider>(context, listen: false);
       
-      // CRITICAL: Saving the 4 fields from THIS page, and passing empty strings 
-      // for the next 4 fields so they are not null/missing.
+      // CRITICAL FIX: Save the 4 fields from THIS page, and initialize the next 4 
+      // with empty strings. This prevents the next page from overwriting them with NULLs.
       kycProvider.updatePersonalDetails(
         newName: _nameController.text,
-        newContact: _contactController.text,
+        newContact: _contactController.text, // CRITICAL: This is the UserId source
         newEmail: _emailController.text,
         newPincode: _pincodeController.text,
-        // Passing empty strings for the next 4 fields (from KYC_details1b)
+        
+        // Initializing the next 4 fields with empty strings
         newDob: '', 
         newGender: '',
         newParentName: '',
         newParentPhone: '',
       );
 
-      // ✅ Navigate to Step 1b (Extra personal details)
+      // Navigate to Step 1b (Extra personal details)
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -155,8 +151,6 @@ class _KYCUploadPageState extends State<KYCUploadPage> {
                         textInputType: TextInputType.number,
                       ),
 
-                      // Spacer is not needed inside SingleChildScrollView, 
-                      // but kept here for structure if you choose to remove the scroll view.
                       const SizedBox(height: 32), 
                     ],
                   ),
@@ -269,5 +263,4 @@ class _KYCUploadPageState extends State<KYCUploadPage> {
       ),
     );
   }
-
 }
