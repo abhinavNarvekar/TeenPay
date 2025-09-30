@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:crypto/crypto.dart';
 import 'dart:convert'; // for utf8.encode
+import '../Dashboard/dashboard_temp.dart';
 
 class SetDetailsScreen extends StatefulWidget {
   const SetDetailsScreen({Key? key}) : super(key: key);
@@ -121,7 +122,10 @@ class _SetDetailsScreenState extends State<SetDetailsScreen> {
       print("✅ Username and password saved securely");
 
       // Navigate to next screen
-      // Navigator.push(context, MaterialPageRoute(builder: (context) => NextScreen()));
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => DashboardScreen()),
+      );
     }
   }
 

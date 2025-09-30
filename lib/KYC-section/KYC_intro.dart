@@ -151,3 +151,4 @@ class KycPage extends StatelessWidget {
     );
   }
 }
+

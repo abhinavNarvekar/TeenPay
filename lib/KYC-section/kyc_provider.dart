@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; // REQUIRED for set()
-import 'package:firebase_auth/firebase_auth.dart';     // REQUIRED for current user
+import 'package:firebase_auth/firebase_auth.dart'; // REQUIRED for current user
 import 'dart:typed_data'; // Required for Uint8List (Image Bytes)
 
 class KycProvider extends ChangeNotifier {
@@ -98,10 +98,10 @@ class KycProvider extends ChangeNotifier {
   }) async {
     try {
       // Use contact as the unique document ID, or fall back to Firebase Auth UID
-      final userId = contact.isNotEmpty 
-          ? contact 
+      final userId = contact.isNotEmpty
+          ? contact
           : FirebaseAuth.instance.currentUser?.uid ?? 'no_auth_id';
-      
+
       if (userId == 'no_auth_id') {
         throw Exception("User ID/Contact not available for document creation.");
       }
@@ -120,9 +120,8 @@ class KycProvider extends ChangeNotifier {
         // Step 2 & 3: Image URLs (from Firebase Storage)
         'documentType': documentType,
         'frontImageUrl': frontImageUrl, // Permanent URL
-        'backImageUrl': backImageUrl,   // Permanent URL
-        'livePhotoUrl': livePhotoUrl,   // Permanent URL
-
+        'backImageUrl': backImageUrl, // Permanent URL
+        'livePhotoUrl': livePhotoUrl, // Permanent URL
         // Metadata
         'status': 'pending',
         'createdAt': FieldValue.serverTimestamp(),

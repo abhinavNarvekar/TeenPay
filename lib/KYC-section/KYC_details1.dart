@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:teenpay/KYC-section/KYC_details1b.dart'; 
 import 'kyc_provider.dart';
+import 'package:teenpay/KYC-section/KYC_details1b.dart'; 
 
 class KYCUploadPage extends StatefulWidget {
   const KYCUploadPage({super.key});
@@ -12,12 +12,12 @@ class KYCUploadPage extends StatefulWidget {
 
 class _KYCUploadPageState extends State<KYCUploadPage> {
   final _formKey = GlobalKey<FormState>();
-  
+
   // Controllers
-  final _nameController = TextEditingController(); 
-  final _contactController = TextEditingController(); 
-  final _emailController = TextEditingController(); 
-  final _pincodeController = TextEditingController(); 
+  final _nameController = TextEditingController();
+  final _contactController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _pincodeController = TextEditingController();
 
   @override
   void dispose() {
@@ -31,19 +31,19 @@ class _KYCUploadPageState extends State<KYCUploadPage> {
   // --- Save Step 1 data + Navigate to Step 1b ---
   void _handleNext(BuildContext context) {
     if (_formKey.currentState!.validate()) {
-      
       final kycProvider = Provider.of<KycProvider>(context, listen: false);
-      
-      // CRITICAL FIX: Save the 4 fields from THIS page, and initialize the next 4 
+
+      // CRITICAL FIX: Save the 4 fields from THIS page, and initialize the next 4
       // with empty strings. This prevents the next page from overwriting them with NULLs.
       kycProvider.updatePersonalDetails(
         newName: _nameController.text,
-        newContact: _contactController.text, // CRITICAL: This is the UserId source
+        newContact:
+            _contactController.text, // CRITICAL: This is the UserId source
         newEmail: _emailController.text,
         newPincode: _pincodeController.text,
-        
+
         // Initializing the next 4 fields with empty strings
-        newDob: '', 
+        newDob: '',
         newGender: '',
         newParentName: '',
         newParentPhone: '',
@@ -52,9 +52,7 @@ class _KYCUploadPageState extends State<KYCUploadPage> {
       // Navigate to Step 1b (Extra personal details)
       Navigator.push(
         context,
-        MaterialPageRoute(
-          builder: (context) => const KycDetails1bPage(),
-        ),
+        MaterialPageRoute(builder: (context) => const KycDetails1bPage()),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -95,9 +93,7 @@ class _KYCUploadPageState extends State<KYCUploadPage> {
                   Expanded(
                     child: _buildStepIndicator('Personal details', true),
                   ),
-                  Expanded(
-                    child: _buildStepIndicator('ID proof', false),
-                  ),
+                  Expanded(child: _buildStepIndicator('ID proof', false)),
                   Expanded(
                     child: _buildStepIndicator('Your real time photo', false),
                   ),
@@ -151,7 +147,7 @@ class _KYCUploadPageState extends State<KYCUploadPage> {
                         textInputType: TextInputType.number,
                       ),
 
-                      const SizedBox(height: 32), 
+                      const SizedBox(height: 32),
                     ],
                   ),
                 ),
@@ -255,7 +251,8 @@ class _KYCUploadPageState extends State<KYCUploadPage> {
           if (value == null || value.isEmpty) {
             return 'This field is required';
           }
-          if (hintText.toLowerCase().contains('email') && !value.contains('@')) {
+          if (hintText.toLowerCase().contains('email') &&
+              !value.contains('@')) {
             return 'Please enter a valid email';
           }
           return null;
