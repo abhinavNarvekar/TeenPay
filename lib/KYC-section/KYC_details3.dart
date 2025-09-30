@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
-import 'dart:typed_data'; // NEW: For web image byte data
-import 'package:flutter/foundation.dart' show kIsWeb; // NEW: For platform check
+import 'dart:typed_data'; 
+import 'package:flutter/foundation.dart' show kIsWeb; 
+import 'dart:io'; 
+
+// --- FIREBASE IMPORTS ---
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+// --------------------------
 
 // Import your provider file
 import 'kyc_provider.dart'; 
@@ -16,16 +22,40 @@ class KYCLivePhotoPage extends StatefulWidget {
 
 class _KYCLivePhotoPageState extends State<KYCLivePhotoPage> {
   // --- STATE FOR UI ---
-  // We will manage whether the photo has been taken locally for the UI state
   bool _photoTaken = false; 
   bool _isSubmitting = false; 
 
-  // ImagePicker instance
   final ImagePicker _picker = ImagePicker();
+  
+  static const Color primaryBlue = Color(0xFF008CFF);
 
-  // --- FUNCTIONAL LOGIC FOR LIVE PHOTO CAPTURE (UPDATED FOR WEB) ---
+
+  // --- Helper Function for Firebase Storage Upload ---
+  Future<String?> _uploadImage(String path, Uint8List? bytes, String storagePath) async {
+    // Check if we have data to upload (either a real path OR bytes)
+    if (path.isEmpty && bytes == null) return null;
+
+    final ref = FirebaseStorage.instance.ref().child('kyc_uploads').child(storagePath);
+    
+    final UploadTask uploadTask;
+    
+    if (kIsWeb && bytes != null) {
+      // Web/Desktop Upload
+      uploadTask = ref.putData(bytes);
+    } else if (path.isNotEmpty) {
+      // Mobile Upload
+      uploadTask = ref.putFile(File(path));
+    } else {
+      return null;
+    }
+    
+    final snapshot = await uploadTask.whenComplete(() {});
+    return await snapshot.ref.getDownloadURL();
+  }
+
+
+  // --- FUNCTIONAL LOGIC FOR LIVE PHOTO CAPTURE ---
   Future<void> _captureLivePhoto(BuildContext context) async {
-    // Open device camera
     final XFile? livePhoto = await _picker.pickImage(
       source: ImageSource.camera, 
       imageQuality: 70,
@@ -37,18 +67,12 @@ class _KYCLivePhotoPageState extends State<KYCLivePhotoPage> {
       Uint8List? bytes;
 
       if (kIsWeb) {
-        // FIX: Read bytes for web platform and save the byte data
         bytes = await livePhoto.readAsBytes();
-        path = 'web_live_photo_uploaded'; // Placeholder path for web
+        path = 'web_live_photo_uploaded';
       }
       
-      // 1. Save the path/bytes to the provider using the updated method signature
-      kycProvider.updateLivePhoto(
-        photoPath: path,
-        photoBytes: bytes, // Pass bytes (will be null on mobile)
-      );
+      kycProvider.updateLivePhoto(photoPath: path, photoBytes: bytes);
 
-      // 2. Update local UI state
       setState(() {
         _photoTaken = true; 
       });
@@ -57,26 +81,18 @@ class _KYCLivePhotoPageState extends State<KYCLivePhotoPage> {
         const SnackBar(
           content: Text('Live photo captured and ready for submission!'),
           duration: Duration(seconds: 2),
-          backgroundColor: Color(0xFF008CFF),
+          backgroundColor: primaryBlue,
         ),
       );
-    } else {
-      // User cancelled camera
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Live photo capture cancelled.')),
-      );
-    }
+    } 
   }
 
 
-  // --- FUNCTIONAL LOGIC FOR SUBMISSION (UNCHANGED) ---
+  // --- FINAL SUBMISSION LOGIC (Updated to pull all 8 fields) ---
   void _handleSubmit(BuildContext context) async {
     if (!_photoTaken) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please take a live photo first.'),
-          backgroundColor: Colors.red,
-        ),
+        const SnackBar(content: Text('Please take a live photo first.'), backgroundColor: Colors.red),
       );
       return;
     }
@@ -86,41 +102,78 @@ class _KYCLivePhotoPageState extends State<KYCLivePhotoPage> {
     });
 
     final kycProvider = Provider.of<KycProvider>(context, listen: false);
+    
+    // CRITICAL: Get User ID/Contact
+    // Using contact as the document ID because it must be unique and is available from the form.
+    final userId = kycProvider.contact.isNotEmpty ? kycProvider.contact : 'kyc_doc_${DateTime.now().millisecondsSinceEpoch}';
 
-    await Future.delayed(const Duration(seconds: 2));
-
-    if (kycProvider.isReadyForSubmission) { 
+    // Validation Check (Will fail if fields on page 1 or 2 were skipped)
+    if (!kycProvider.isReadyForSubmission) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('✅ KYC Submission Successful!'),
-          backgroundColor: Color(0xFF008CFF),
-        ),
+        const SnackBar(content: Text('Submission Error: Missing data from previous steps.'), backgroundColor: Colors.red),
       );
-      
-      kycProvider.resetKycData();
-      
-      // Navigate away from KYC flow (e.g., to the main dashboard)
-      // Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const DashboardScreen()), (route) => false);
-
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Submission Error: Missing data from previous steps.'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      setState(() { _isSubmitting = false; });
+      return;
     }
     
-    setState(() {
-      _isSubmitting = false;
-    });
+    try {
+      // 1. Upload Images to Firebase Storage (Uploading all three potential files)
+      final frontImageUrl = await _uploadImage(kycProvider.frontImagePath, kycProvider.frontImageBytes, '$userId/front_id');
+      final livePhotoUrl = await _uploadImage(kycProvider.livePhotoPath, kycProvider.livePhotoBytes, '$userId/live_photo');
+      
+      String? backImageUrl;
+      if (kycProvider.backImagePath.isNotEmpty || kycProvider.backImageBytes != null) {
+          backImageUrl = await _uploadImage(kycProvider.backImagePath, kycProvider.backImageBytes, '$userId/back_id');
+      }
+
+      // 2. Prepare the COMPLETE Data Map for the Firestore KYC collection
+      final kycData = {
+          // Identifiers & Status
+          'userId': userId,
+          'submissionDate': FieldValue.serverTimestamp(),
+          'kycStatus': 'Pending Verification',
+          
+          // --- ALL 8 PERSONAL DETAILS (Now saved from KYC_details1b) ---
+          'name': kycProvider.name,
+          'contact': kycProvider.contact,
+          'email': kycProvider.email,
+          'pincode': kycProvider.pincode,
+          'dateOfBirth': kycProvider.dateOfBirth, 
+          'gender': kycProvider.gender,         
+          'parentName': kycProvider.parentName, 
+          'parentPhone': kycProvider.parentPhone,
+          
+          // --- DOCUMENT & IMAGE DATA ---
+          'documentType': kycProvider.documentType,
+          'frontImageUrl': frontImageUrl,
+          'backImageUrl': backImageUrl, 
+          'livePhotoUrl': livePhotoUrl,
+      };
+
+      // 3. Write Data to Firestore
+      await FirebaseFirestore.instance
+          .collection('KYC') 
+          .doc(userId)
+          .set(kycData);
+
+      // 4. Success & Cleanup
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('✅ KYC Submission Successful! Document created in Firestore.'), backgroundColor: primaryBlue),
+      );
+      kycProvider.resetKycData();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Submission Failed: ${e.toString()}'), backgroundColor: Colors.red),
+      );
+    } finally {
+      setState(() { _isSubmitting = false; });
+    }
   }
 
 
   @override
   Widget build(BuildContext context) {
-    const Color primaryBlue = Color(0xFF008CFF);
-    
+    // ... (rest of the build method is unchanged)
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -130,14 +183,7 @@ class _KYCLivePhotoPageState extends State<KYCLivePhotoPage> {
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
-          'Upload KYC',
-          style: TextStyle(
-            color: Colors.black,
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+        title: const Text('Upload KYC', style: TextStyle(color: Colors.black, fontSize: 20, fontWeight: FontWeight.w600)),
         centerTitle: false,
       ),
       body: SafeArea(
@@ -162,22 +208,12 @@ class _KYCLivePhotoPageState extends State<KYCLivePhotoPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Section Title
-                    const Text(
-                      'Upload Live-photo',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                      ),
-                    ),
+                    const Text('Upload Live-photo', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black)),
                     const SizedBox(height: 24),
                     
-                    // Instructions List
                     _buildInstructionsList(),
                     const SizedBox(height: 32),
                     
-                    // Camera Upload Area (Functional)
                     _buildCameraUploadArea(),
                     
                     const Spacer(),
@@ -197,28 +233,15 @@ class _KYCLivePhotoPageState extends State<KYCLivePhotoPage> {
                   
                   style: ElevatedButton.styleFrom(
                     backgroundColor: primaryBlue,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     elevation: 0,
                   ),
                   child: _isSubmitting
                       ? const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 3,
-                          ),
+                          width: 24, height: 24,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3),
                         )
-                      : const Text(
-                          'Next (Submit)',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
+                      : const Text('Next (Submit)', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),
                 ),
               ),
             ),
@@ -228,35 +251,37 @@ class _KYCLivePhotoPageState extends State<KYCLivePhotoPage> {
     );
   }
 
-  // --- Helper Widgets Below ---
+  // --- Helper Widgets Below (Unchanged) ---
 
   Widget _buildStepIndicator(String title, bool isActive) {
     const Color activeColor = Color(0xFF008CFF);
     const Color inactiveColor = Color(0xFFA0A0A0);
     const Color inactiveBar = Color(0xFFE0E0E0);
     
-    return Column(
-      children: [
-        Container(
-          height: 8,
-          decoration: BoxDecoration(
-            color: isActive ? activeColor : inactiveBar,
-            borderRadius: BorderRadius.circular(4),
+    return Expanded(
+      child: Column(
+        children: [
+          Container(
+            height: 8,
+            decoration: BoxDecoration(
+              color: isActive ? activeColor : inactiveBar,
+              borderRadius: BorderRadius.circular(4),
+            ),
           ),
-        ),
-        const SizedBox(height: 12),
-        Text(
-          title,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-            color: isActive ? activeColor : inactiveColor,
+          const SizedBox(height: 12),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: isActive ? activeColor : inactiveColor,
+            ),
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
-          textAlign: TextAlign.center,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -279,21 +304,13 @@ class _KYCLivePhotoPageState extends State<KYCLivePhotoPage> {
             children: [
               Container(
                 margin: const EdgeInsets.only(top: 8, right: 12),
-                width: 6,
-                height: 6,
-                decoration: const BoxDecoration(
-                  color: Color(0xFF616161),
-                  shape: BoxShape.circle,
-                ),
+                width: 6, height: 6,
+                decoration: const BoxDecoration(color: Color(0xFF616161), shape: BoxShape.circle),
               ),
               Expanded(
                 child: Text(
                   instruction,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF616161),
-                    height: 1.5,
-                  ),
+                  style: const TextStyle(fontSize: 14, color: Color(0xFF616161), height: 1.5),
                 ),
               ),
             ],
@@ -306,7 +323,6 @@ class _KYCLivePhotoPageState extends State<KYCLivePhotoPage> {
   Widget _buildCameraUploadArea() {
     return Center(
       child: GestureDetector(
-        // CALLING THE CAPTURE FUNCTION
         onTap: () {
           _captureLivePhoto(context);
         },
@@ -325,14 +341,12 @@ class _KYCLivePhotoPageState extends State<KYCLivePhotoPage> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Icon changes based on photo state
               Icon(
                 _photoTaken ? Icons.check_circle : Icons.camera_alt_outlined,
                 size: 80,
                 color: _photoTaken ? const Color(0xFF008CFF) : const Color(0xFF9E9E9E),
               ),
               const SizedBox(height: 24),
-              // Status Text
               Text(
                 _photoTaken ? 'Photo Captured' : 'Tap to open camera',
                 style: TextStyle(

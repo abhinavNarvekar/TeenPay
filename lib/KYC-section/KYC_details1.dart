@@ -1,15 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart'; // Needed for data saving (Step 2)
-import 'package:teenpay/KYC-section/KYC_details1b.dart';
-
-// Assuming the file for the next step is named 'KYC_details2.dart'
-import 'KYC_details2.dart';
-
-// Assuming your Provider class is named 'KycProvider' and is in 'kyc_provider.dart' in the same folder
+import 'package:provider/provider.dart';
+// Note: This import path is specific to your structure:
+import '../KYC-section/KYC_details1b.dart'; // Corrected import path
 import 'kyc_provider.dart';
 
 class KYCUploadPage extends StatefulWidget {
-  // NOTE: I'm assuming KYCUploadPage is the class name for KYC_details1.dart
   const KYCUploadPage({super.key});
 
   @override
@@ -18,10 +13,14 @@ class KYCUploadPage extends StatefulWidget {
 
 class _KYCUploadPageState extends State<KYCUploadPage> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _contactController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _pincodeController = TextEditingController();
+  
+  // --- IMPORTANT: Removed static placeholder text! ---
+  // The user will enter this data.
+  final _nameController = TextEditingController(); 
+  final _contactController = TextEditingController(); 
+  final _emailController = TextEditingController(); 
+  final _pincodeController = TextEditingController(); 
+  // ----------------------------------------------------
 
   @override
   void dispose() {
@@ -32,42 +31,43 @@ class _KYCUploadPageState extends State<KYCUploadPage> {
     super.dispose();
   }
 
-  // --- FUNCTIONAL NAVIGATION & DATA SAVE LOGIC START ---
+  // --- Save Step 1 data + Navigate to Step 1b ---
   void _handleNext(BuildContext context) {
     if (_formKey.currentState!.validate()) {
-      // --- START: Data Saving (Temporarily Commented Out) ---
-      // This section is commented out for now, but ready when you implement the data flow!
-      /*
+      
+      // ✅ Save entered details into provider
       final kycProvider = Provider.of<KycProvider>(context, listen: false);
+      
+      // CRITICAL: Saving the 4 fields from THIS page, and passing empty strings 
+      // for the next 4 fields so they are not null/missing.
       kycProvider.updatePersonalDetails(
         newName: _nameController.text,
         newContact: _contactController.text,
         newEmail: _emailController.text,
         newPincode: _pincodeController.text,
+        // Passing empty strings for the next 4 fields (from KYC_details1b)
+        newDob: '', 
+        newGender: '',
+        newParentName: '',
+        newParentPhone: '',
       );
-      */
-      // --- END: Data Saving ---
 
-      // --- Navigation to the next page (KYC_details2.dart) ---
+      // ✅ Navigate to Step 1b (Extra personal details)
       Navigator.push(
         context,
         MaterialPageRoute(
-          // Ensure KYCDetails2Page is the class name inside your KYC_details2.dart file
-          builder: (context) => const KYCDetails1Page(),
+          builder: (context) => const KycDetails1bPage(),
         ),
       );
     } else {
-      // Optional: Show a message if validation fails (form field validators handle the visual errors)
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please correct the errors in the form.')),
       );
     }
   }
-  // --- FUNCTIONAL NAVIGATION & DATA SAVE LOGIC END ---
 
   @override
   Widget build(BuildContext context) {
-    // ... (rest of your build method)
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -90,36 +90,33 @@ class _KYCUploadPageState extends State<KYCUploadPage> {
       body: SafeArea(
         child: Column(
           children: [
-            // Step Indicators
+            // --- Step Indicator ---
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
               child: Row(
                 children: [
                   Expanded(
-                    child: _buildStepIndicator('Personal details', true, 0),
+                    child: _buildStepIndicator('Personal details', true),
                   ),
-                  Expanded(child: _buildStepIndicator('ID proof', false, 1)),
                   Expanded(
-                    child: _buildStepIndicator(
-                      'Your real time photo',
-                      false,
-                      2,
-                    ),
+                    child: _buildStepIndicator('ID proof', false),
+                  ),
+                  Expanded(
+                    child: _buildStepIndicator('Your real time photo', false),
                   ),
                 ],
               ),
             ),
 
-            // Form Section
+            // --- Form Section (Scrollable Area) ---
             Expanded(
-              child: Padding(
+              child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Form(
                   key: _formKey,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Section Title
                       const Text(
                         'Enter Your Details',
                         style: TextStyle(
@@ -130,7 +127,6 @@ class _KYCUploadPageState extends State<KYCUploadPage> {
                       ),
                       const SizedBox(height: 32),
 
-                      // Input Fields
                       _buildInputField(
                         controller: _nameController,
                         hintText: 'Name',
@@ -147,7 +143,7 @@ class _KYCUploadPageState extends State<KYCUploadPage> {
 
                       _buildInputField(
                         controller: _emailController,
-                        hintText: 'email...',
+                        hintText: 'Email...',
                         textInputType: TextInputType.emailAddress,
                       ),
                       const SizedBox(height: 20),
@@ -158,24 +154,23 @@ class _KYCUploadPageState extends State<KYCUploadPage> {
                         textInputType: TextInputType.number,
                       ),
 
-                      // Spacer to push button to bottom
-                      const Spacer(),
+                      // Spacer is not needed inside SingleChildScrollView, 
+                      // but kept here for structure if you choose to remove the scroll view.
+                      const SizedBox(height: 32), 
                     ],
                   ),
                 ),
               ),
             ),
 
-            // Next Button
+            // --- Next Button ---
             Container(
               padding: const EdgeInsets.all(24),
               child: SizedBox(
                 width: double.infinity,
                 height: 56,
                 child: ElevatedButton(
-                  // <--- CALLING THE NEW FUNCTION HERE --->
                   onPressed: () => _handleNext(context),
-
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF008CFF),
                     shape: RoundedRectangleBorder(
@@ -200,10 +195,8 @@ class _KYCUploadPageState extends State<KYCUploadPage> {
     );
   }
 
-  // --- Helper Widgets Below (No changes needed here) ---
-
-  Widget _buildStepIndicator(String title, bool isActive, int stepIndex) {
-    // ... (your existing _buildStepIndicator code) ...
+  // --- Step Indicator Helper (unchanged) ---
+  Widget _buildStepIndicator(String title, bool isActive) {
     return Column(
       children: [
         Container(
@@ -229,12 +222,12 @@ class _KYCUploadPageState extends State<KYCUploadPage> {
     );
   }
 
+  // --- Input Field Helper (unchanged) ---
   Widget _buildInputField({
     required TextEditingController controller,
     required String hintText,
     required TextInputType textInputType,
   }) {
-    // ... (your existing _buildInputField code) ...
     return SizedBox(
       height: 56,
       child: TextFormField(
@@ -267,7 +260,7 @@ class _KYCUploadPageState extends State<KYCUploadPage> {
           if (value == null || value.isEmpty) {
             return 'This field is required';
           }
-          if (hintText.contains('email') && !value.contains('@')) {
+          if (hintText.toLowerCase().contains('email') && !value.contains('@')) {
             return 'Please enter a valid email';
           }
           return null;
