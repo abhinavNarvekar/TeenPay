@@ -23,7 +23,8 @@ void main() async {
   // Initialize Firebase
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  runApp(
+  runApp( 
+    
     ChangeNotifierProvider(
       create: (context) => KycProvider(),
       child: const TeenPayApp(),
