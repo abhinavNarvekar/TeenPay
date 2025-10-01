@@ -189,19 +189,6 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
             .doc(user.uid)
             .get();
 
-        // Create user in Firestore if doesn't exist
-        if (!userDoc.exists) {
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(user.uid)
-              .set({
-                'uid': user.uid,
-                'phone': user.phoneNumber,
-                'kycStatus': 'pending',
-                'createdAt': FieldValue.serverTimestamp(),
-              });
-        }
-
         if (userDoc.exists) {
           Navigator.pushReplacement(
             context,
@@ -480,3 +467,4 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
     );
   }
 }
+//workign was
