@@ -38,7 +38,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
     6,
     (_) => TextEditingController(),
   );
-  final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
+  final List<FocusNode> _focusNodes = List.generate(6, (Index) => FocusNode());
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   late Timer _timer;
