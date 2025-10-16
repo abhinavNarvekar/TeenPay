@@ -105,7 +105,7 @@ class _SetNewPinScreenState extends State<SetNewPinScreen> {
           Future.delayed(const Duration(milliseconds: 500), () {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (context) => const DashboardScreen()),
+              MaterialPageRoute(builder: (context) => const TeenPayApp()),
             );
           });
         } catch (e) {

@@ -22,6 +22,8 @@ import '../Register-section/otp_verify.dart';
 import '../Register-section/enter_phoneno.dart';
 import '../Register-section/set_tpin.dart';
 
+import '../Dashboard/dashboard_temp.dart';
+
 void main() async {
   // Initialize Flutter bindings
   WidgetsFlutterBinding.ensureInitialized();
@@ -52,7 +54,7 @@ class TeenPayApp extends StatelessWidget {
         useMaterial3: true,
       ),
       // Entry screen of your app
-      home: const SetNewPinScreen(),
+      home: const TeenPayApp(),
     );
   }
 }

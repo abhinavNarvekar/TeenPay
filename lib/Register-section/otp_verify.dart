@@ -174,7 +174,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
       if (userExists) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const DashboardScreen()),
+          MaterialPageRoute(builder: (_) => const TeenPayApp()),
         );
       } else {
         Navigator.pushReplacement(
@@ -205,7 +205,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
         if (userDoc.exists) {
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (_) => const DashboardScreen()),
+            MaterialPageRoute(builder: (_) => const TeenPayApp()),
           );
         } else {
           Navigator.pushReplacement(
