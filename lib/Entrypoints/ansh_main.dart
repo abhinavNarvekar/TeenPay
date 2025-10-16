@@ -14,15 +14,18 @@ import '../welcome_screen.dart';
 import '../KYC-section/KYC_intro.dart';
 import '../KYC-section/kyc_provider.dart';
 import '../KYC-section/KYC_details1b.dart';
+import '../KYC-section/KYC_details1b.dart';
 
 // Other app imports
 import '../Login_section/email_phone_option_screen.dart';
 import '../Post-kyc-registration/setusername_pass.dart';
 import '../Register-section/otp_verify.dart';
 import '../Register-section/enter_phoneno.dart';
+
 import '../Register-section/set_tpin.dart';
 
 import '../Dashboard/dashboard_temp.dart';
+import '../view-balance/view_balance.dart';
 
 void main() async {
   // Initialize Flutter bindings
@@ -58,4 +61,3 @@ class TeenPayApp extends StatelessWidget {
     );
   }
 }
-
