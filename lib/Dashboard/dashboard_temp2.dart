@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 class TeenPayApp extends StatelessWidget {
-  final String? username; // optional: passed from login
-  const TeenPayApp({Key? key, this.username}) : super(key: key);
+  const TeenPayApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -14,15 +11,14 @@ class TeenPayApp extends StatelessWidget {
         primarySwatch: Colors.blue,
         scaffoldBackgroundColor: const Color(0xFFF0F7FF),
       ),
-      home: TeenPayDashboard(username: username),
+      home: const TeenPayDashboard(),
       debugShowCheckedModeBanner: false,
     );
   }
 }
 
 class TeenPayDashboard extends StatefulWidget {
-  final String? username;
-  const TeenPayDashboard({Key? key, this.username}) : super(key: key);
+  const TeenPayDashboard({Key? key}) : super(key: key);
 
   @override
   State<TeenPayDashboard> createState() => _TeenPayDashboardState();
@@ -30,107 +26,38 @@ class TeenPayDashboard extends StatefulWidget {
 
 class _TeenPayDashboardState extends State<TeenPayDashboard> {
   int _selectedIndex = 0;
-  String displayName = 'User';
-  double walletBalance = 0.0;
-  bool _loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchUserDetails();
-  }
-
-  Future<void> _fetchUserDetails() async {
-    try {
-      String? uid;
-
-      // 1) Try Firebase Auth user
-      final currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser != null) uid = currentUser.uid;
-
-      // 2) If no auth UID, use passed username to get uid from usernames collection
-      final String? loggedInUsername = widget.username;
-      if (uid == null &&
-          loggedInUsername != null &&
-          loggedInUsername.isNotEmpty) {
-        final usernameDoc = await FirebaseFirestore.instance
-            .collection('usernames')
-            .doc(loggedInUsername)
-            .get();
-        if (usernameDoc.exists && usernameDoc.data() != null) {
-          uid = usernameDoc.data()?['uid'] as String?;
-        }
-      }
-
-      // 3) Fetch name from kyc/{uid}
-      if (uid != null && uid.isNotEmpty) {
-        final kycDoc = await FirebaseFirestore.instance
-            .collection('kyc')
-            .doc(uid)
-            .get();
-        if (kycDoc.exists && kycDoc.data() != null) {
-          final kycData = kycDoc.data()!;
-          final name =
-              kycData['name'] ?? kycData['fullName'] ?? kycData['displayName'];
-          setState(() {
-            displayName = (name ?? 'User') as String;
-          });
-        }
-      }
-
-      // 4) Fetch wallet balance from wallets/{username} (username used as doc id)
-      if (loggedInUsername != null && loggedInUsername.isNotEmpty) {
-        final walletDoc = await FirebaseFirestore.instance
-            .collection('wallets')
-            .doc(loggedInUsername)
-            .get();
-        if (walletDoc.exists && walletDoc.data() != null) {
-          final walletData = walletDoc.data()!;
-          setState(() {
-            walletBalance = ((walletData['balance'] ?? 0) as num).toDouble();
-          });
-        }
-      }
-    } catch (e) {
-      print('Error fetching user details: $e');
-    } finally {
-      setState(() {
-        _loading = false;
-      });
-    }
-  }
 
   void _onItemTapped(int index) {
-    setState(() => _selectedIndex = index);
-  }
-
-  Widget _headerTitle() {
-    return const Center(
-      child: Padding(
-        padding: EdgeInsets.symmetric(vertical: 24),
-        child: Text(
-          'TeenPay',
-          style: TextStyle(
-            fontSize: 26,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF1F2937),
-          ),
-        ),
-      ),
-    );
+    setState(() {
+      _selectedIndex = index;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : SingleChildScrollView(
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _headerTitle(),
+                    // Header
+                    const Center(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(vertical: 24),
+                        child: Text(
+                          'TeenPay',
+                          style: TextStyle(
+                            fontSize: 26,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1F2937),
+                          ),
+                        ),
+                      ),
+                    ),
 
                     // Wallet Card
                     Padding(
@@ -153,17 +80,7 @@ class _TeenPayDashboardState extends State<TeenPayDashboard> {
                         ),
                         padding: const EdgeInsets.all(28),
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              'Hello, $displayName',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: const [
@@ -183,9 +100,9 @@ class _TeenPayDashboardState extends State<TeenPayDashboard> {
                               ],
                             ),
                             const SizedBox(height: 22),
-                            Text(
-                              '₹${walletBalance.toStringAsFixed(2)} INR',
-                              style: const TextStyle(
+                            const Text(
+                              '₹5,450 INR',
+                              style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 36,
                                 fontWeight: FontWeight.bold,
@@ -220,13 +137,58 @@ class _TeenPayDashboardState extends State<TeenPayDashboard> {
 
                     const SizedBox(height: 32),
 
-                    // Quick Actions title and row
-                    _sectionTitle('Quick Actions'),
-                    _quickActionsRow(),
+                    // Quick Actions
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 20),
+                            child: Text(
+                              'Quick Actions',
+                              style: TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF374151),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            child: Row(
+                              children: [
+                                _buildQuickAction(
+                                  Icons.qr_code_scanner,
+                                  'Scan any\nQR code',
+                                ),
+                                const SizedBox(width: 22),
+                                _buildQuickAction(
+                                  Icons.people_outline,
+                                  'Pay to\nFriend',
+                                ),
+                                const SizedBox(width: 22),
+                                _buildQuickAction(
+                                  Icons.add_circle_outline,
+                                  'Add\nMoney',
+                                ),
+                                const SizedBox(width: 22),
+                                _buildQuickAction(
+                                  Icons.notifications_outlined,
+                                  'Pending\nRequest',
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
 
                     const SizedBox(height: 36),
 
-                    // Recent Contacts (restored)
+                    // Recent Contacts
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 8),
                       child: Column(
@@ -267,93 +229,119 @@ class _TeenPayDashboardState extends State<TeenPayDashboard> {
 
                     const SizedBox(height: 36),
 
-                    // Offers and Rewards section
-                    _sectionTitle('Offers and Rewards'),
+                    // Offers and Rewards
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            begin: Alignment.centerLeft,
-                            end: Alignment.centerRight,
-                            colors: [Color(0xFFFBBF24), Color(0xFFF97316)],
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Offers and Rewards',
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF374151),
+                            ),
                           ),
-                          borderRadius: BorderRadius.circular(18),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.orange.withOpacity(0.3),
-                              blurRadius: 12,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        padding: const EdgeInsets.all(20),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.card_giftcard,
-                              color: Colors.white,
-                              size: 42,
-                            ),
-                            const SizedBox(width: 16),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: const [
-                                Text(
-                                  'Rewards',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                SizedBox(height: 4),
-                                Text(
-                                  'Check your latest offers',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 14,
-                                  ),
+                          const SizedBox(height: 16),
+                          Container(
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                begin: Alignment.centerLeft,
+                                end: Alignment.centerRight,
+                                colors: [Color(0xFFFBBF24), Color(0xFFF97316)],
+                              ),
+                              borderRadius: BorderRadius.circular(18),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.orange.withOpacity(0.3),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 4),
                                 ),
                               ],
                             ),
-                          ],
-                        ),
+                            padding: const EdgeInsets.all(20),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.card_giftcard,
+                                  color: Colors.white,
+                                  size: 42,
+                                ),
+                                const SizedBox(width: 16),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: const [
+                                    Text(
+                                      'Rewards',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    SizedBox(height: 4),
+                                    Text(
+                                      'Check your latest offers',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ),
 
                     const SizedBox(height: 36),
 
-                    // Manage your Money section
-                    _sectionTitle('Manage your Money!'),
+                    // Manage Your Money
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(18),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
-                              blurRadius: 10,
-                              offset: const Offset(0, 2),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Manage your Money!',
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF374151),
                             ),
-                          ],
-                        ),
-                        child: Column(
-                          children: [
-                            _buildManageOption(
-                              Icons.history,
-                              'See transaction history',
-                              true,
+                          ),
+                          const SizedBox(height: 16),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(18),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.05),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
                             ),
-                            _buildManageOption(
-                              Icons.account_balance_wallet_outlined,
-                              'View Balance',
-                              false,
+                            child: Column(
+                              children: [
+                                _buildManageOption(
+                                  Icons.history,
+                                  'See transaction history',
+                                  true,
+                                ),
+                                _buildManageOption(
+                                  Icons.account_balance_wallet_outlined,
+                                  'View Balance',
+                                  false,
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
 
@@ -361,89 +349,86 @@ class _TeenPayDashboardState extends State<TeenPayDashboard> {
                   ],
                 ),
               ),
+            ),
+          ],
+        ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.history), label: 'History'),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.card_giftcard),
-            label: 'Rewards',
-          ),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
-        ],
-        currentIndex: _selectedIndex,
-        selectedItemColor: const Color(0xFF2563EB),
-        unselectedItemColor: const Color(0xFF9CA3AF),
-        onTap: _onItemTapped,
-        type: BottomNavigationBarType.fixed,
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 10,
+              offset: const Offset(0, -2),
+            ),
+          ],
+        ),
+        child: BottomNavigationBar(
+          items: const <BottomNavigationBarItem>[
+            BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.history),
+              label: 'History',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.card_giftcard),
+              label: 'Rewards',
+            ),
+            BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+          ],
+          currentIndex: _selectedIndex,
+          selectedItemColor: const Color(0xFF2563EB),
+          unselectedItemColor: const Color(0xFF9CA3AF),
+          onTap: _onItemTapped,
+          type: BottomNavigationBarType.fixed,
+          backgroundColor: Colors.white,
+          elevation: 0,
+          selectedFontSize: 12,
+          unselectedFontSize: 12,
+        ),
       ),
     );
   }
 
-  // small helpers
-
-  Widget _sectionTitle(String title) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-    child: Text(
-      title,
-      style: const TextStyle(
-        fontSize: 17,
-        fontWeight: FontWeight.w600,
-        color: Color(0xFF374151),
-      ),
-    ),
-  );
-
-  Widget _quickActionsRow() => SingleChildScrollView(
-    scrollDirection: Axis.horizontal,
-    padding: const EdgeInsets.symmetric(horizontal: 20),
-    child: Row(
-      children: [
-        _buildQuickAction(Icons.qr_code_scanner, 'Scan any\nQR code'),
-        const SizedBox(width: 22),
-        _buildQuickAction(Icons.people_outline, 'Pay to\nFriend'),
-        const SizedBox(width: 22),
-        _buildQuickAction(Icons.add_circle_outline, 'Add\nMoney'),
-        const SizedBox(width: 22),
-        _buildQuickAction(Icons.notifications_outlined, 'Pending\nRequest'),
-      ],
-    ),
-  );
-
-  Widget _buildQuickAction(IconData icon, String label) => Column(
-    children: [
-      Container(
-        width: 65,
-        height: 65,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.08),
-              blurRadius: 12,
-              offset: const Offset(0, 3),
+  Widget _buildQuickAction(IconData icon, String label) {
+    return GestureDetector(
+      onTap: () {},
+      child: Column(
+        children: [
+          Container(
+            width: 65,
+            height: 65,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(18),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.08),
+                  blurRadius: 12,
+                  offset: const Offset(0, 3),
+                ),
+              ],
             ),
-          ],
-        ),
-        child: Icon(icon, color: const Color(0xFF2563EB), size: 26),
-      ),
-      const SizedBox(height: 10),
-      SizedBox(
-        width: 80,
-        child: Text(
-          label,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            fontSize: 12,
-            color: Color(0xFF4B5563),
-            height: 1.2,
+            child: Icon(icon, color: const Color(0xFF2563EB), size: 26),
           ),
-        ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: 80,
+            child: Text(
+              label,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 12,
+                color: Color(0xFF4B5563),
+                height: 1.2,
+              ),
+            ),
+          ),
+        ],
       ),
-    ],
-  );
+    );
+  }
 
   Widget _buildContact(String name, Color color) {
     return GestureDetector(

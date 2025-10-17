@@ -91,6 +91,7 @@ class _SetNewPinScreenState extends State<SetNewPinScreen> {
           await walletRef.set({
             'username': _username,
             'tPin': _firstPin,
+            'balance':0.0,
             'createdAt': FieldValue.serverTimestamp(),
           });
 

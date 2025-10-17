@@ -79,7 +79,7 @@ class _LoginScreenState extends State<LoginScreen> {
       // Navigate to dashboard
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => TeenPayApp(username: username)),
+        MaterialPageRoute(builder: (_) => const TeenPayApp()),
       );
     } catch (e) {
       setState(() {
