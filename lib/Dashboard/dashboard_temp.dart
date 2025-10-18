@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'addmoneypage2.dart'; // <-- import AddMoneyScreen
+import 'entertpin.dart';
 
 class TeenPayApp extends StatelessWidget {
-  final String? username; // optional: passed from login
+  final String? username;
   const TeenPayApp({Key? key, this.username}) : super(key: key);
 
   @override
@@ -33,6 +35,7 @@ class _TeenPayDashboardState extends State<TeenPayDashboard> {
   String displayName = 'User';
   double walletBalance = 0.0;
   bool _loading = true;
+  bool _isBalanceVisible = false;
 
   @override
   void initState() {
@@ -44,11 +47,9 @@ class _TeenPayDashboardState extends State<TeenPayDashboard> {
     try {
       String? uid;
 
-      // 1) Try Firebase Auth user
       final currentUser = FirebaseAuth.instance.currentUser;
       if (currentUser != null) uid = currentUser.uid;
 
-      // 2) If no auth UID, use passed username to get uid from usernames collection
       final String? loggedInUsername = widget.username;
       if (uid == null &&
           loggedInUsername != null &&
@@ -62,7 +63,6 @@ class _TeenPayDashboardState extends State<TeenPayDashboard> {
         }
       }
 
-      // 3) Fetch name from kyc/{uid}
       if (uid != null && uid.isNotEmpty) {
         final kycDoc = await FirebaseFirestore.instance
             .collection('kyc')
@@ -78,25 +78,27 @@ class _TeenPayDashboardState extends State<TeenPayDashboard> {
         }
       }
 
-      // 4) Fetch wallet balance from wallets/{username} (username used as doc id)
-      if (loggedInUsername != null && loggedInUsername.isNotEmpty) {
-        final walletDoc = await FirebaseFirestore.instance
-            .collection('wallets')
-            .doc(loggedInUsername)
-            .get();
-        if (walletDoc.exists && walletDoc.data() != null) {
-          final walletData = walletDoc.data()!;
-          setState(() {
-            walletBalance = ((walletData['balance'] ?? 0) as num).toDouble();
-          });
-        }
-      }
+      await _refreshBalance();
     } catch (e) {
       print('Error fetching user details: $e');
     } finally {
-      setState(() {
-        _loading = false;
-      });
+      setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _refreshBalance() async {
+    final loggedInUsername = widget.username;
+    if (loggedInUsername != null && loggedInUsername.isNotEmpty) {
+      final walletDoc = await FirebaseFirestore.instance
+          .collection('wallets')
+          .doc(loggedInUsername)
+          .get();
+      if (walletDoc.exists && walletDoc.data() != null) {
+        final walletData = walletDoc.data()!;
+        setState(() {
+          walletBalance = ((walletData['balance'] ?? 0) as num).toDouble();
+        });
+      }
     }
   }
 
@@ -104,21 +106,19 @@ class _TeenPayDashboardState extends State<TeenPayDashboard> {
     setState(() => _selectedIndex = index);
   }
 
-  Widget _headerTitle() {
-    return const Center(
-      child: Padding(
-        padding: EdgeInsets.symmetric(vertical: 24),
-        child: Text(
-          'TeenPay',
-          style: TextStyle(
-            fontSize: 26,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF1F2937),
-          ),
+  Widget _headerTitle() => const Center(
+    child: Padding(
+      padding: EdgeInsets.symmetric(vertical: 24),
+      child: Text(
+        'TeenPay',
+        style: TextStyle(
+          fontSize: 26,
+          fontWeight: FontWeight.bold,
+          color: Color(0xFF1F2937),
         ),
       ),
-    );
-  }
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -132,7 +132,9 @@ class _TeenPayDashboardState extends State<TeenPayDashboard> {
                   children: [
                     _headerTitle(),
 
-                    // Wallet Card
+                    // Add this state variable in your _TeenPayDashboardState:
+
+                    // --- Wallet Card ---
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 20),
                       child: Container(
@@ -155,6 +157,7 @@ class _TeenPayDashboardState extends State<TeenPayDashboard> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            // Greeting
                             Text(
                               'Hello, $displayName',
                               style: const TextStyle(
@@ -164,10 +167,12 @@ class _TeenPayDashboardState extends State<TeenPayDashboard> {
                               ),
                             ),
                             const SizedBox(height: 16),
+
+                            // Wallet header + Eye button
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: const [
-                                Text(
+                              children: [
+                                const Text(
                                   'Your Wallet',
                                   style: TextStyle(
                                     color: Colors.white,
@@ -175,43 +180,57 @@ class _TeenPayDashboardState extends State<TeenPayDashboard> {
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
-                                Icon(
-                                  Icons.visibility_outlined,
-                                  color: Colors.white,
-                                  size: 22,
+                                GestureDetector(
+                                  onTap: () async {
+                                    if (_isBalanceVisible) {
+                                      // If balance is visible, hide it
+                                      setState(() {
+                                        _isBalanceVisible = false;
+                                      });
+                                    } else {
+                                      // If balance is hidden, ask for PIN
+                                      final updatedBalance =
+                                          await Navigator.push<double>(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (context) => EnterPinPage(
+                                                username: widget.username!,
+                                                navigateToWallet:
+                                                    false, // only reveal balance
+                                              ),
+                                            ),
+                                          );
+
+                                      if (updatedBalance != null) {
+                                        setState(() {
+                                          walletBalance = updatedBalance;
+                                          _isBalanceVisible = true;
+                                        });
+                                      }
+                                    }
+                                  },
+                                  child: Icon(
+                                    _isBalanceVisible
+                                        ? Icons.visibility_outlined
+                                        : Icons.visibility_off_outlined,
+                                    color: Colors.white,
+                                    size: 22,
+                                  ),
                                 ),
                               ],
                             ),
                             const SizedBox(height: 22),
+
+                            // Balance display
                             Text(
-                              '₹${walletBalance.toStringAsFixed(2)} INR',
+                              _isBalanceVisible
+                                  ? '₹${walletBalance.toStringAsFixed(2)} INR'
+                                  : 'XXX',
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 36,
                                 fontWeight: FontWeight.bold,
                               ),
-                            ),
-                            const SizedBox(height: 10),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Container(
-                                  width: 8,
-                                  height: 8,
-                                  decoration: const BoxDecoration(
-                                    color: Color(0xFF86EFAC),
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                const Text(
-                                  '+1,250 this week',
-                                  style: TextStyle(
-                                    color: Color(0xFF86EFAC),
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ],
                             ),
                           ],
                         ),
@@ -219,143 +238,20 @@ class _TeenPayDashboardState extends State<TeenPayDashboard> {
                     ),
 
                     const SizedBox(height: 32),
-
-                    // Quick Actions title and row
                     _sectionTitle('Quick Actions'),
                     _quickActionsRow(),
 
                     const SizedBox(height: 36),
-
-                    // Recent Contacts (restored)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 20),
-                            child: Text(
-                              'Recent Contacts',
-                              style: TextStyle(
-                                fontSize: 17,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF374151),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            padding: const EdgeInsets.symmetric(horizontal: 20),
-                            child: Row(
-                              children: [
-                                _buildContact('Ansh', Colors.blue),
-                                const SizedBox(width: 18),
-                                _buildContact('Abhinav', Colors.green),
-                                const SizedBox(width: 18),
-                                _buildContact('Darshani', Colors.purple),
-                                const SizedBox(width: 18),
-                                _buildContact('Sanat', Colors.orange),
-                                const SizedBox(width: 18),
-                                _buildMoreButton(),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                    _sectionTitle('Recent Contacts'),
+                    _recentContactsSection(),
 
                     const SizedBox(height: 36),
-
-                    // Offers and Rewards section
                     _sectionTitle('Offers and Rewards'),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            begin: Alignment.centerLeft,
-                            end: Alignment.centerRight,
-                            colors: [Color(0xFFFBBF24), Color(0xFFF97316)],
-                          ),
-                          borderRadius: BorderRadius.circular(18),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.orange.withOpacity(0.3),
-                              blurRadius: 12,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        padding: const EdgeInsets.all(20),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.card_giftcard,
-                              color: Colors.white,
-                              size: 42,
-                            ),
-                            const SizedBox(width: 16),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: const [
-                                Text(
-                                  'Rewards',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                SizedBox(height: 4),
-                                Text(
-                                  'Check your latest offers',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+                    _offersRewardsSection(),
 
                     const SizedBox(height: 36),
-
-                    // Manage your Money section
                     _sectionTitle('Manage your Money!'),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(18),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
-                              blurRadius: 10,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          children: [
-                            _buildManageOption(
-                              Icons.history,
-                              'See transaction history',
-                              true,
-                            ),
-                            _buildManageOption(
-                              Icons.account_balance_wallet_outlined,
-                              'View Balance',
-                              false,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+                    _manageMoneySection(),
 
                     const SizedBox(height: 100),
                   ],
@@ -381,53 +277,89 @@ class _TeenPayDashboardState extends State<TeenPayDashboard> {
     );
   }
 
-  // small helpers
-
-  Widget _sectionTitle(String title) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-    child: Text(
-      title,
-      style: const TextStyle(
-        fontSize: 17,
-        fontWeight: FontWeight.w600,
-        color: Color(0xFF374151),
-      ),
-    ),
-  );
-
+  // --- Quick Actions ---
   Widget _quickActionsRow() => SingleChildScrollView(
     scrollDirection: Axis.horizontal,
     padding: const EdgeInsets.symmetric(horizontal: 20),
     child: Row(
       children: [
-        _buildQuickAction(Icons.qr_code_scanner, 'Scan any\nQR code'),
+        _buildQuickAction(
+          Icons.qr_code_scanner,
+          'Scan any\nQR code',
+          // onTap: () {
+          //   Navigator.push(
+          //     context,
+          //     MaterialPageRoute(builder: (context) => ScanQRScreen()),
+          //   );
+          // },
+        ),
         const SizedBox(width: 22),
-        _buildQuickAction(Icons.people_outline, 'Pay to\nFriend'),
+        _buildQuickAction(
+          Icons.people_outline,
+          'Pay to\nFriend',
+          // onTap: () {
+          //   Navigator.push(
+          //     context,
+          //     MaterialPageRoute(builder: (context) => PayToFriendScreen()),
+          //   );
+          // },
+        ),
         const SizedBox(width: 22),
-        _buildQuickAction(Icons.add_circle_outline, 'Add\nMoney'),
+        _buildQuickAction(
+          Icons.add_circle_outline,
+          'Add\nMoney',
+          onTap: () async {
+            final updatedBalance = await Navigator.push<double>(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    AddMoneyScreen(username: widget.username!),
+              ),
+            );
+            if (updatedBalance != null) {
+              setState(() => walletBalance = updatedBalance);
+            }
+          },
+        ),
         const SizedBox(width: 22),
-        _buildQuickAction(Icons.notifications_outlined, 'Pending\nRequest'),
+        _buildQuickAction(
+          Icons.notifications_outlined,
+          'Pending\nRequest',
+          // onTap: () {
+          //   Navigator.push(
+          //     context,
+          // MaterialPageRoute(builder: (context) => PendingRequestScreen()),
+          //   );
+          // },
+        ),
       ],
     ),
   );
 
-  Widget _buildQuickAction(IconData icon, String label) => Column(
+  Widget _buildQuickAction(
+    IconData icon,
+    String label, {
+    VoidCallback? onTap,
+  }) => Column(
     children: [
-      Container(
-        width: 65,
-        height: 65,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.08),
-              blurRadius: 12,
-              offset: const Offset(0, 3),
-            ),
-          ],
+      GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 65,
+          height: 65,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 12,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Icon(icon, color: const Color(0xFF2563EB), size: 26),
         ),
-        child: Icon(icon, color: const Color(0xFF2563EB), size: 26),
       ),
       const SizedBox(height: 10),
       SizedBox(
@@ -445,114 +377,233 @@ class _TeenPayDashboardState extends State<TeenPayDashboard> {
     ],
   );
 
-  Widget _buildContact(String name, Color color) {
-    return GestureDetector(
-      onTap: () {},
-      child: Column(
-        children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: color.withOpacity(0.3),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Center(
-              child: Text(
-                name[0],
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            name,
-            style: const TextStyle(fontSize: 12, color: Color(0xFF4B5563)),
-          ),
-        ],
-      ),
-    );
-  }
+  // --- Recent Contacts ---
+  Widget _recentContactsSection() => SingleChildScrollView(
+    scrollDirection: Axis.horizontal,
+    padding: const EdgeInsets.symmetric(horizontal: 20),
+    child: Row(
+      children: [
+        _buildContact('Ansh', Colors.blue),
+        const SizedBox(width: 18),
+        _buildContact('Abhinav', Colors.green),
+        const SizedBox(width: 18),
+        _buildContact('Darshani', Colors.purple),
+        const SizedBox(width: 18),
+        _buildContact('Sanat', Colors.orange),
+        const SizedBox(width: 18),
+        _buildMoreButton(),
+      ],
+    ),
+  );
 
-  Widget _buildMoreButton() {
-    return GestureDetector(
-      onTap: () {},
-      child: Column(
-        children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: const Color(0xFFE5E7EB),
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.08),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: const Center(
-              child: Icon(Icons.more_horiz, color: Color(0xFF4B5563), size: 24),
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'More',
-            style: TextStyle(fontSize: 12, color: Color(0xFF4B5563)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildManageOption(IconData icon, String label, bool showDivider) {
-    return InkWell(
-      onTap: () {},
-      child: Container(
-        padding: const EdgeInsets.all(16),
+  Widget _buildContact(String name, Color color) => Column(
+    children: [
+      Container(
+        width: 56,
+        height: 56,
         decoration: BoxDecoration(
-          border: showDivider
-              ? const Border(
-                  bottom: BorderSide(color: Color(0xFFF3F4F6), width: 1),
-                )
-              : null,
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: const Color(0xFFEFF6FF),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, color: const Color(0xFF2563EB), size: 20),
-            ),
-            const SizedBox(width: 12),
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w500,
-                color: Color(0xFF374151),
-              ),
+          color: color,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: color.withOpacity(0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
           ],
         ),
+        child: Center(
+          child: Text(
+            name[0],
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
       ),
-    );
-  }
+      const SizedBox(height: 8),
+      Text(
+        name,
+        style: const TextStyle(fontSize: 12, color: Color(0xFF4B5563)),
+      ),
+    ],
+  );
+
+  Widget _buildMoreButton() => Column(
+    children: [
+      Container(
+        width: 56,
+        height: 56,
+        decoration: BoxDecoration(
+          color: const Color(0xFFE5E7EB),
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: const Center(
+          child: Icon(Icons.more_horiz, color: Color(0xFF4B5563), size: 24),
+        ),
+      ),
+      const SizedBox(height: 8),
+      const Text(
+        'More',
+        style: TextStyle(fontSize: 12, color: Color(0xFF4B5563)),
+      ),
+    ],
+  );
+
+  // --- Offers & Rewards ---
+  Widget _offersRewardsSection() => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 20),
+    child: Container(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: [Color(0xFFFBBF24), Color(0xFFF97316)],
+        ),
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.orange.withOpacity(0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Row(
+        children: [
+          const Icon(Icons.card_giftcard, color: Colors.white, size: 42),
+          const SizedBox(width: 16),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: const [
+              Text(
+                'Rewards',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              SizedBox(height: 4),
+              Text(
+                'Check your latest offers',
+                style: TextStyle(color: Colors.white, fontSize: 14),
+              ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
+
+  // --- Manage Money Section ---
+  Widget _manageMoneySection() => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 20),
+    child: Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          _buildManageOption(Icons.history, 'See transaction history', true),
+          _buildManageOption(
+            Icons.account_balance_wallet_outlined,
+            'View Balance',
+            false,
+            onTap: () async {
+              final balance = await Navigator.push<double>(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => EnterPinPage(
+                    username: widget.username!,
+                    navigateToWallet: true, // true = go to WalletBalancePage
+                  ),
+                ),
+              );
+
+              if (balance != null) {
+                setState(() {
+                  walletBalance = balance;
+                  _isBalanceVisible = true;
+                });
+              }
+            },
+          ),
+        ],
+      ),
+    ),
+  );
+
+  Widget _buildManageOption(
+    IconData icon,
+    String label,
+    bool showDivider, {
+    VoidCallback? onTap,
+  }) => InkWell(
+    onTap: onTap,
+
+    child: Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        border: showDivider
+            ? const Border(
+                bottom: BorderSide(color: Color(0xFFF3F4F6), width: 1),
+              )
+            : null,
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: const Color(0xFFEFF6FF),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: const Color(0xFF2563EB), size: 20),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF374151),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+
+  // --- Section Title Helper ---
+  Widget _sectionTitle(String title) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+    child: Text(
+      title,
+      style: const TextStyle(
+        fontSize: 17,
+        fontWeight: FontWeight.w600,
+        color: Color(0xFF374151),
+      ),
+    ),
+  );
 }
