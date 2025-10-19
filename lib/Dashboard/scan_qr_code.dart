@@ -1,24 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:qr_code_scanner/qr_code_scanner.dart';
-
-void main() {
-  runApp(const MyApp());
-}
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: QrScannerPage(),
-    );
-  }
-}
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:qr_code_scanner_plus/qr_code_scanner_plus.dart';
+import '../transactions-via-scanning/sendmoney.dart'; // Import your SendMoneyScreen here
 
 class QrScannerPage extends StatefulWidget {
-  const QrScannerPage({Key? key}) : super(key: key);
+  final String senderUsername;
+
+  const QrScannerPage({Key? key, required this.senderUsername})
+    : super(key: key);
 
   @override
   State<QrScannerPage> createState() => _QrScannerPageState();
@@ -28,11 +17,11 @@ class _QrScannerPageState extends State<QrScannerPage> {
   final GlobalKey qrKey = GlobalKey(debugLabel: 'QR');
   QRViewController? controller;
   String? scannedData;
+  bool _navigating = false; // Prevents multiple navigations
 
   @override
   void reassemble() {
     super.reassemble();
-    // Fix for Android/iOS hot reload camera issue
     if (mounted) {
       controller?.pauseCamera();
       controller?.resumeCamera();
@@ -47,39 +36,83 @@ class _QrScannerPageState extends State<QrScannerPage> {
 
   void _onQRViewCreated(QRViewController controller) {
     this.controller = controller;
-    controller.scannedDataStream.listen((scanData) {
-      setState(() {
-        scannedData = scanData.code;
-      });
+    controller.scannedDataStream.listen((scanData) async {
+      if (_navigating) return; // Avoid duplicate scans
+      final code = scanData.code;
+      if (code == null) return;
 
-      // Stop scanning after one successful scan
+      setState(() => scannedData = code);
       controller.pauseCamera();
 
-      // Navigate or show result
-      _showResultDialog(scanData.code ?? "No data found");
+      // Parse username from scanned QR
+      String? scannedUsername;
+      try {
+        final uri = Uri.parse(code);
+        if (uri.scheme == 'teenpay' && uri.host == 'pay') {
+          scannedUsername = uri.pathSegments.isNotEmpty
+              ? uri.pathSegments.first.replaceAll('@teenpay', '')
+              : null;
+        }
+      } catch (e) {
+        scannedUsername = null;
+      }
+
+      // ✅ Check for valid username
+      if (scannedUsername == null) {
+        _showResultDialog('Invalid QR Code');
+        return;
+      }
+
+      // ✅ Prevent self-sending
+      if (scannedUsername == widget.senderUsername) {
+        _showResultDialog("You can't send money to yourself.");
+        return;
+      }
+
+      // Fetch teenpay_id from Firestore
+      String teenPayId = 'unknown_id';
+      try {
+        final doc = await FirebaseFirestore.instance
+            .collection('usernames')
+            .doc(scannedUsername)
+            .get();
+        if (doc.exists) {
+          teenPayId = doc['teenpay_id'] ?? 'unknown_id';
+        }
+      } catch (e) {
+        teenPayId = 'unknown_id';
+      }
+
+      // Navigate to SendMoneyScreen
+      if (mounted) {
+        setState(() => _navigating = true);
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => SendMoneyScreen(
+              senderUsername: widget.senderUsername,
+              recipientUsername: scannedUsername!,
+              teenPayId: teenPayId,
+            ),
+          ),
+        );
+      }
     });
   }
 
-  void _showResultDialog(String result) {
+  void _showResultDialog(String message) {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('QR Code Scanned'),
-        content: Text('Data: $result'),
+        title: const Text('QR Code Scan Result'),
+        content: Text(message),
         actions: [
           TextButton(
             onPressed: () {
               Navigator.pop(context);
               controller?.resumeCamera();
             },
-            child: const Text('Scan Again'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pop(context, result); // Return scanned value
-            },
-            child: const Text('Done'),
+            child: const Text('OK'),
           ),
         ],
       ),

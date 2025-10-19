@@ -118,6 +118,7 @@ class _SetDetailsScreenState extends State<SetDetailsScreen> {
       await _firestore.collection('usernames').doc(username).set({
         'uid': uid,
         'createdAt': FieldValue.serverTimestamp(),
+        'teenpay_id': '$username@teenpay',
       });
 
       print("✅ Username and password saved securely");

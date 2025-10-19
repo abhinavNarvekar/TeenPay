@@ -3,6 +3,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'addmoneypage2.dart'; // <-- import AddMoneyScreen
 import 'entertpin.dart';
+import 'scan_qr_code.dart';
+
+import '../Profile-section/profile_page.dart';
 
 class TeenPayApp extends StatelessWidget {
   final String? username;
@@ -43,10 +46,38 @@ class _TeenPayDashboardState extends State<TeenPayDashboard> {
     _fetchUserDetails();
   }
 
+  // ---------------------- BODY SWITCHING ----------------------
+  Widget _getBody() {
+    switch (_selectedIndex) {
+      case 0:
+        return _homeContent();
+      case 1:
+        return Center(
+          child: Text(
+            'History Screen\n(To be implemented)',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 22),
+          ),
+        );
+      case 2:
+        return Center(
+          child: Text(
+            'Rewards Screen\n(To be implemented)',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 22),
+          ),
+        );
+      case 3:
+        return ProfileScreen(username: widget.username);
+      default:
+        return _homeContent();
+    }
+  }
+
+  // ---------------------- FETCH USER DETAILS ----------------------
   Future<void> _fetchUserDetails() async {
     try {
       String? uid;
-
       final currentUser = FirebaseAuth.instance.currentUser;
       if (currentUser != null) uid = currentUser.uid;
 
@@ -86,6 +117,7 @@ class _TeenPayDashboardState extends State<TeenPayDashboard> {
     }
   }
 
+  // ---------------------- FETCH WALLET ----------------------
   Future<void> _refreshBalance() async {
     final loggedInUsername = widget.username;
     if (loggedInUsername != null && loggedInUsername.isNotEmpty) {
@@ -102,10 +134,14 @@ class _TeenPayDashboardState extends State<TeenPayDashboard> {
     }
   }
 
+  // ---------------------- NAVIGATION ----------------------
   void _onItemTapped(int index) {
-    setState(() => _selectedIndex = index);
+    setState(() {
+      _selectedIndex = index;
+    });
   }
 
+  // ---------------------- HEADER TITLE ----------------------
   Widget _headerTitle() => const Center(
     child: Padding(
       padding: EdgeInsets.symmetric(vertical: 24),
@@ -120,143 +156,14 @@ class _TeenPayDashboardState extends State<TeenPayDashboard> {
     ),
   );
 
+  // ---------------------- BUILD ----------------------
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
         child: _loading
             ? const Center(child: CircularProgressIndicator())
-            : SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _headerTitle(),
-
-                    // Add this state variable in your _TeenPayDashboardState:
-
-                    // --- Wallet Card ---
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [Color(0xFF60A5FA), Color(0xFF2563EB)],
-                          ),
-                          borderRadius: BorderRadius.circular(24),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.blue.withOpacity(0.25),
-                              blurRadius: 15,
-                              offset: const Offset(0, 6),
-                            ),
-                          ],
-                        ),
-                        padding: const EdgeInsets.all(28),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Greeting
-                            Text(
-                              'Hello, $displayName',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-
-                            // Wallet header + Eye button
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text(
-                                  'Your Wallet',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                                GestureDetector(
-                                  onTap: () async {
-                                    if (_isBalanceVisible) {
-                                      // If balance is visible, hide it
-                                      setState(() {
-                                        _isBalanceVisible = false;
-                                      });
-                                    } else {
-                                      // If balance is hidden, ask for PIN
-                                      final updatedBalance =
-                                          await Navigator.push<double>(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (context) => EnterPinPage(
-                                                username: widget.username!,
-                                                navigateToWallet:
-                                                    false, // only reveal balance
-                                              ),
-                                            ),
-                                          );
-
-                                      if (updatedBalance != null) {
-                                        setState(() {
-                                          walletBalance = updatedBalance;
-                                          _isBalanceVisible = true;
-                                        });
-                                      }
-                                    }
-                                  },
-                                  child: Icon(
-                                    _isBalanceVisible
-                                        ? Icons.visibility_outlined
-                                        : Icons.visibility_off_outlined,
-                                    color: Colors.white,
-                                    size: 22,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 22),
-
-                            // Balance display
-                            Text(
-                              _isBalanceVisible
-                                  ? '₹${walletBalance.toStringAsFixed(2)} INR'
-                                  : 'XXX',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 36,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 32),
-                    _sectionTitle('Quick Actions'),
-                    _quickActionsRow(),
-
-                    const SizedBox(height: 36),
-                    _sectionTitle('Recent Contacts'),
-                    _recentContactsSection(),
-
-                    const SizedBox(height: 36),
-                    _sectionTitle('Offers and Rewards'),
-                    _offersRewardsSection(),
-
-                    const SizedBox(height: 36),
-                    _sectionTitle('Manage your Money!'),
-                    _manageMoneySection(),
-
-                    const SizedBox(height: 100),
-                  ],
-                ),
-              ),
+            : _getBody(),
       ),
       bottomNavigationBar: BottomNavigationBar(
         items: const [
@@ -277,7 +184,135 @@ class _TeenPayDashboardState extends State<TeenPayDashboard> {
     );
   }
 
-  // --- Quick Actions ---
+  // ---------------------- DASHBOARD CONTENT ----------------------
+  Widget _homeContent() {
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _headerTitle(),
+
+          // --- Wallet Card ---
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFF60A5FA), Color(0xFF2563EB)],
+                ),
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.blue.withOpacity(0.25),
+                    blurRadius: 15,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              padding: const EdgeInsets.all(28),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Greeting
+                  Text(
+                    'Hello, $displayName',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Wallet header + Eye button
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Your Wallet',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () async {
+                          if (_isBalanceVisible) {
+                            setState(() {
+                              _isBalanceVisible = false;
+                            });
+                          } else {
+                            final updatedBalance = await Navigator.push<double>(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => EnterPinPage(
+                                  username: widget.username!,
+                                  navigateToWallet: false,
+                                ),
+                              ),
+                            );
+                            if (updatedBalance != null) {
+                              setState(() {
+                                walletBalance = updatedBalance;
+                                _isBalanceVisible = true;
+                              });
+                            }
+                          }
+                        },
+                        child: Icon(
+                          _isBalanceVisible
+                              ? Icons.visibility_outlined
+                              : Icons.visibility_off_outlined,
+                          color: Colors.white,
+                          size: 22,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 22),
+
+                  // Balance display
+                  Text(
+                    _isBalanceVisible
+                        ? '₹${walletBalance.toStringAsFixed(2)} INR'
+                        : 'XXX',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 36,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 32),
+          _sectionTitle('Quick Actions'),
+          _quickActionsRow(),
+
+          const SizedBox(height: 36),
+          _sectionTitle('Recent Contacts'),
+          _recentContactsSection(),
+
+          const SizedBox(height: 36),
+          _sectionTitle('Offers and Rewards'),
+          _offersRewardsSection(),
+
+          const SizedBox(height: 36),
+          _sectionTitle('Manage your Money!'),
+          _manageMoneySection(),
+
+          const SizedBox(height: 100),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------- QUICK ACTIONS ----------------------
   Widget _quickActionsRow() => SingleChildScrollView(
     scrollDirection: Axis.horizontal,
     padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -286,25 +321,20 @@ class _TeenPayDashboardState extends State<TeenPayDashboard> {
         _buildQuickAction(
           Icons.qr_code_scanner,
           'Scan any\nQR code',
-          // onTap: () {
-          //   Navigator.push(
-          //     context,
-          //     MaterialPageRoute(builder: (context) => ScanQRScreen()),
-          //   );
-          // },
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) =>  QrScannerPage(senderUsername: widget.username!)),
+            );
+          },
         ),
+
         const SizedBox(width: 22),
-        _buildQuickAction(
-          Icons.people_outline,
-          'Pay to\nFriend',
-          // onTap: () {
-          //   Navigator.push(
-          //     context,
-          //     MaterialPageRoute(builder: (context) => PayToFriendScreen()),
-          //   );
-          // },
-        ),
+
+        _buildQuickAction(Icons.people_outline, 'Pay to\nFriend'),
+
         const SizedBox(width: 22),
+
         _buildQuickAction(
           Icons.add_circle_outline,
           'Add\nMoney',
@@ -321,17 +351,10 @@ class _TeenPayDashboardState extends State<TeenPayDashboard> {
             }
           },
         ),
+
         const SizedBox(width: 22),
-        _buildQuickAction(
-          Icons.notifications_outlined,
-          'Pending\nRequest',
-          // onTap: () {
-          //   Navigator.push(
-          //     context,
-          // MaterialPageRoute(builder: (context) => PendingRequestScreen()),
-          //   );
-          // },
-        ),
+
+        _buildQuickAction(Icons.notifications_outlined, 'Pending\nRequest'),
       ],
     ),
   );
@@ -377,7 +400,7 @@ class _TeenPayDashboardState extends State<TeenPayDashboard> {
     ],
   );
 
-  // --- Recent Contacts ---
+  // ---------------------- RECENT CONTACTS ----------------------
   Widget _recentContactsSection() => SingleChildScrollView(
     scrollDirection: Axis.horizontal,
     padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -459,7 +482,7 @@ class _TeenPayDashboardState extends State<TeenPayDashboard> {
     ],
   );
 
-  // --- Offers & Rewards ---
+  // ---------------------- OFFERS & REWARDS ----------------------
   Widget _offersRewardsSection() => Padding(
     padding: const EdgeInsets.symmetric(horizontal: 20),
     child: Container(
@@ -506,7 +529,7 @@ class _TeenPayDashboardState extends State<TeenPayDashboard> {
     ),
   );
 
-  // --- Manage Money Section ---
+  // ---------------------- MANAGE MONEY ----------------------
   Widget _manageMoneySection() => Padding(
     padding: const EdgeInsets.symmetric(horizontal: 20),
     child: Container(
@@ -534,11 +557,10 @@ class _TeenPayDashboardState extends State<TeenPayDashboard> {
                 MaterialPageRoute(
                   builder: (context) => EnterPinPage(
                     username: widget.username!,
-                    navigateToWallet: true, // true = go to WalletBalancePage
+                    navigateToWallet: true,
                   ),
                 ),
               );
-
               if (balance != null) {
                 setState(() {
                   walletBalance = balance;
@@ -559,7 +581,6 @@ class _TeenPayDashboardState extends State<TeenPayDashboard> {
     VoidCallback? onTap,
   }) => InkWell(
     onTap: onTap,
-
     child: Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -594,7 +615,7 @@ class _TeenPayDashboardState extends State<TeenPayDashboard> {
     ),
   );
 
-  // --- Section Title Helper ---
+  // ---------------------- SECTION TITLE ----------------------
   Widget _sectionTitle(String title) => Padding(
     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
     child: Text(

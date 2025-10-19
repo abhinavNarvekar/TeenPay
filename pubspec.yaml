@@ -14,7 +14,7 @@ dependencies:
   google_fonts: ^6.1.0
   qr_flutter: ^4.0.0
   share_plus: ^7.2.1
-  qr_code_scanner: ^1.0.1
+  qr_code_scanner_plus: ^2.0.7
 
   # ---------------- State management & utilities ----------------
   provider: ^6.0.5
