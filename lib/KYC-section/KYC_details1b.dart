@@ -21,45 +21,79 @@ class KycDetails1bPage extends StatefulWidget {
 class _KycDetails1bPageState extends State<KycDetails1bPage> {
   final _formKey = GlobalKey<FormState>();
 
-  // Controllers for the 4 visible fields
   final _dobController = TextEditingController();
-  final _genderController = TextEditingController();
   final _parentNameController = TextEditingController();
   final _parentPhoneController = TextEditingController();
 
-  // --- Removed initState and local String variables to prevent async race condition ---
-  // The BuildContext will now read data directly from the Provider via Consumer.
+  String? _selectedGender; // <-- new variable for gender
 
   @override
   void dispose() {
     _dobController.dispose();
-    _genderController.dispose();
     _parentNameController.dispose();
     _parentPhoneController.dispose();
     super.dispose();
   }
 
-  // --- Data Saving and Navigation Logic (UPDATED) ---
-  // This now accepts the pre-filled data directly from the Provider's current state.
+  // --- DOB Picker with age restriction ---
+  Future<void> _pickDate(BuildContext context) async {
+    final DateTime? pickedDate = await showDatePicker(
+      context: context,
+      initialDate: DateTime(2005, 1, 1),
+      firstDate: DateTime(1950),
+      lastDate: DateTime.now(),
+      helpText: 'Select your Date of Birth',
+    );
+
+    if (pickedDate != null) {
+      // ✅ Calculate age difference
+      final today = DateTime.now();
+      int age = today.year - pickedDate.year;
+      if (today.month < pickedDate.month ||
+          (today.month == pickedDate.month && today.day < pickedDate.day)) {
+        age--;
+      }
+
+      if (age < 14) {
+        // ❌ Show error if user is under 14
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('You must be at least 14 years old to continue.'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+        return;
+      }
+
+      // ✅ If age >= 14, set date
+      setState(() {
+        _dobController.text =
+            "${pickedDate.day.toString().padLeft(2, '0')}/${pickedDate.month.toString().padLeft(2, '0')}/${pickedDate.year}";
+      });
+    }
+  }
+
   void _handleNext(BuildContext context, KycProvider kycProvider) {
     if (_formKey.currentState!.validate()) {
+      if (_selectedGender == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please select your gender')),
+        );
+        return;
+      }
 
-      // Save ALL 8 fields now, reading the pre-filled data directly from the provider object
+      // Save all fields into provider
       kycProvider.updatePersonalDetails(
-        // Preserve data from KYC_details1 by reading Provider's current state
-        newName: kycProvider.name, 
-        newContact: kycProvider.contact, 
-        newEmail: kycProvider.email, 
-        newPincode: kycProvider.pincode, 
-        
-        // Save new data collected on THIS page
+        newName: kycProvider.name,
+        newContact: kycProvider.contact,
+        newEmail: kycProvider.email,
+        newPincode: kycProvider.pincode,
         newDob: _dobController.text,
-        newGender: _genderController.text,
+        newGender: _selectedGender!,
         newParentName: _parentNameController.text,
         newParentPhone: _parentPhoneController.text,
       );
-      
-      // Navigate to next page (ID Proof)
+
       Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => const KycIdProofPage()),
@@ -73,13 +107,8 @@ class _KycDetails1bPageState extends State<KycDetails1bPage> {
 
   @override
   Widget build(BuildContext context) {
-    // CRITICAL FIX: Use Consumer to get the Provider data instantly in the build method.
     return Consumer<KycProvider>(
       builder: (context, kycProvider, child) {
-        
-        // Use debug print to confirm critical data is loaded before button press
-        print('DEBUG BUILD: Contact field status: ${kycProvider.contact.isNotEmpty ? 'LOADED' : 'MISSING'}');
-
         return Scaffold(
           backgroundColor: Colors.white,
           appBar: AppBar(
@@ -89,7 +118,14 @@ class _KycDetails1bPageState extends State<KycDetails1bPage> {
               icon: const Icon(Icons.arrow_back, color: Colors.black),
               onPressed: () => Navigator.pop(context),
             ),
-            title: const Text('Upload KYC', style: TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.w600)),
+            title: const Text(
+              'Upload KYC',
+              style: TextStyle(
+                color: Colors.black,
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
             centerTitle: true,
           ),
           body: Form(
@@ -105,47 +141,112 @@ class _KycDetails1bPageState extends State<KycDetails1bPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Enter Your Details', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: darkTextColor)),
+                          const Text(
+                            'Enter Your Details',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: darkTextColor,
+                            ),
+                          ),
                           const SizedBox(height: 24),
 
-                          // --- VISIBLE FIELDS ---
+                          // --- DOB Field with mini calendar picker ---
                           _buildLabel('Date of Birth'),
-                          _buildInputField(controller: _dobController, hint: 'DD/MM/YYYY', keyboardType: TextInputType.datetime),
+                          GestureDetector(
+                            onTap: () => _pickDate(context),
+                            child: AbsorbPointer(
+                              child: _buildInputField(
+                                controller: _dobController,
+                                hint: 'DD/MM/YYYY',
+                                keyboardType: TextInputType.none,
+                              ),
+                            ),
+                          ),
                           const SizedBox(height: 20),
-                          
+
+                          // --- Gender Dropdown ---
                           _buildLabel('Gender'),
-                          _buildInputField(controller: _genderController, hint: 'Gender'),
+                          Container(
+                            height: 56,
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            decoration: BoxDecoration(
+                              color: fillColor,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: DropdownButtonFormField<String>(
+                              value: _selectedGender,
+                              decoration: const InputDecoration(
+                                border: InputBorder.none,
+                              ),
+                              hint: const Text('Select Gender'),
+                              items: const [
+                                DropdownMenuItem(
+                                  value: 'Male',
+                                  child: Text('Male'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'Female',
+                                  child: Text('Female'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'Other',
+                                  child: Text('Other'),
+                                ),
+                              ],
+                              validator: (value) =>
+                                  value == null ? 'Please select gender' : null,
+                              onChanged: (value) {
+                                setState(() {
+                                  _selectedGender = value;
+                                });
+                              },
+                            ),
+                          ),
                           const SizedBox(height: 20),
-                          
+
                           _buildLabel('Parent/Guardian name'),
-                          _buildInputField(controller: _parentNameController, hint: 'Full Name'),
+                          _buildInputField(
+                            controller: _parentNameController,
+                            hint: 'Full Name',
+                          ),
                           const SizedBox(height: 20),
-                          
+
                           _buildLabel('Parents Phone No'),
-                          _buildInputField(controller: _parentPhoneController, hint: 'P.No', keyboardType: TextInputType.phone),
+                          _buildInputField(
+                            controller: _parentPhoneController,
+                            hint: 'Phone No',
+                            keyboardType: TextInputType.phone,
+                          ),
                           const SizedBox(height: 32),
-                          // ----------------------
                         ],
                       ),
                     ),
                   ),
                 ),
-                
-                // Next Button
+
                 Padding(
                   padding: const EdgeInsets.all(24.0),
                   child: SizedBox(
                     width: double.infinity,
                     height: 50,
                     child: ElevatedButton(
-                      // CRITICAL: Pass the kycProvider instance to the handler
-                      onPressed: () => _handleNext(context, kycProvider), 
+                      onPressed: () => _handleNext(context, kycProvider),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: primaryBlue,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                         elevation: 0,
                       ),
-                      child: const Text('Next', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                      child: const Text(
+                        'Next',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -153,11 +254,10 @@ class _KycDetails1bPageState extends State<KycDetails1bPage> {
             ),
           ),
         );
-      }
+      },
     );
   }
 
-  // --- Helper Widgets (Unchanged) ---
   Widget _buildProgressIndicator() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
@@ -175,7 +275,14 @@ class _KycDetails1bPageState extends State<KycDetails1bPage> {
   Widget _buildLabel(String text) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
-      child: Text(text, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: darkTextColor)),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+          color: darkTextColor,
+        ),
+      ),
     );
   }
 
@@ -198,10 +305,18 @@ class _KycDetails1bPageState extends State<KycDetails1bPage> {
           hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
           filled: true,
           fillColor: fillColor,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
-          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
-          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: primaryBlue, width: 1)),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: primaryBlue, width: 1),
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 14,
+          ),
         ),
       ),
     );
@@ -218,9 +333,23 @@ class _StepItem extends StatelessWidget {
     return Expanded(
       child: Column(
         children: [
-          Text(title, textAlign: TextAlign.center, style: TextStyle(fontSize: 12, fontWeight: isActive ? FontWeight.w600 : FontWeight.normal, color: isActive ? primaryBlue : inactiveColor)),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+              color: isActive ? primaryBlue : inactiveColor,
+            ),
+          ),
           const SizedBox(height: 8),
-          Container(height: 3, decoration: BoxDecoration(color: isActive ? primaryBlue : inactiveBarColor, borderRadius: BorderRadius.circular(2))),
+          Container(
+            height: 3,
+            decoration: BoxDecoration(
+              color: isActive ? primaryBlue : inactiveBarColor,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
         ],
       ),
     );

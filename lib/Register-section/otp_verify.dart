@@ -5,13 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
 import '../login_or_register.dart'; // For OtpMode enum
-import '../KYC-section/KYC_intro.dart'; // For OtpMode enum
+import '../KYC-section/KYC_intro.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../Post-kyc-registration/setusername_pass.dart';
 import '../Dashboard/dashboard_temp.dart';
-
-// TODO: Import your actual dashboard page here
-// import '../Dashboard/dashboard_page.dart';
 
 class OTPVerificationScreen extends StatefulWidget {
   final String verificationId;
@@ -19,6 +16,7 @@ class OTPVerificationScreen extends StatefulWidget {
   final int? resendToken;
   final ConfirmationResult? confirmationResult; // For web
   final OtpMode mode; // Login or Registration mode
+  final String? username; // <-- Added username
 
   const OTPVerificationScreen({
     Key? key,
@@ -27,6 +25,7 @@ class OTPVerificationScreen extends StatefulWidget {
     this.resendToken,
     this.confirmationResult,
     required this.mode,
+    this.username, // <-- Added username
   }) : super(key: key);
 
   @override
@@ -154,32 +153,22 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
     final user = _auth.currentUser;
     if (user == null) return;
 
+    setState(() => _isVerifying = false);
+
     if (widget.mode == OtpMode.login) {
-      bool userExists = false;
-
-      try {
-        final userDoc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .get();
-
-        userExists = userDoc.exists;
-      } catch (e) {
-        print('Firestore read error: $e');
-        userExists = false; // fallback if read fails
-      }
-
-      setState(() => _isVerifying = false);
-
-      if (userExists) {
+      // ✅ Use username passed from previous screen instead of fetching again
+      final username = widget.username;
+      if (username != null) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const TeenPayApp()),
+          MaterialPageRoute(
+            builder: (_) =>
+                TeenPayApp(username: username), // Pass username to dashboard
+          ),
         );
       } else {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const KycPage()),
+        _showErrorDialog(
+          'Failed to retrieve username. Please try logging in again.',
         );
       }
     } else if (widget.mode == OtpMode.registration) {
@@ -189,7 +178,6 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
             .doc(user.uid)
             .get();
 
-        // Create user in Firestore if doesn't exist
         if (!userDoc.exists) {
           await FirebaseFirestore.instance
               .collection('users')
@@ -202,28 +190,13 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
               });
         }
 
-        if (userDoc.exists) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => const TeenPayApp()),
-          );
-        } else {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => const KycPage()),
-          );
-        }
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const KycPage()),
+        );
       } catch (e) {
-        setState(() => _isVerifying = false);
         _showErrorDialog('Failed to fetch user data: $e');
       }
-
-      setState(() => _isVerifying = false);
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const KycPage()),
-      );
     }
   }
 

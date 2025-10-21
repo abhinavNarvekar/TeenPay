@@ -6,9 +6,10 @@ import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../Register-section/otp_verify.dart';
 import '../login_or_register.dart'; // For OtpMode enum
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class PhoneNumberEntryScreen extends StatefulWidget {
-  final OtpMode mode; // <-- Added mode to know registration/login
+  final OtpMode mode; // Login or Registration mode
 
   const PhoneNumberEntryScreen({Key? key, required this.mode})
     : super(key: key);
@@ -57,23 +58,92 @@ class _PhoneNumberEntryScreenState extends State<PhoneNumberEntryScreen> {
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     final fullPhoneNumber = '+91$phoneNumber';
+    String? username;
 
     try {
+      final firestore = FirebaseFirestore.instance;
+
+      if (widget.mode == OtpMode.registration) {
+        final existingUserQuery = await firestore
+            .collection('users')
+            .where('phone', isEqualTo: fullPhoneNumber)
+            .limit(1)
+            .get();
+
+        if (existingUserQuery.docs.isNotEmpty) {
+          final userDoc = existingUserQuery.docs.first;
+          final userData = userDoc.data();
+          username = userData['username'];
+
+          String? tPin;
+          if (username != null) {
+            final walletDoc = await firestore
+                .collection('wallets')
+                .doc(username)
+                .get();
+            tPin = (walletDoc.data() as Map<String, dynamic>?)?['tPin'];
+          }
+
+          if (username != null && tPin != null) {
+            setState(() => _isLoading = false);
+            _showErrorDialog(
+              'This phone number is already registered and has a set tPin.\nPlease log in instead.',
+            );
+            return;
+          }
+        }
+      } else if (widget.mode == OtpMode.login) {
+        final existingUserQuery = await firestore
+            .collection('users')
+            .where('phone', isEqualTo: fullPhoneNumber)
+            .limit(1)
+            .get();
+
+        if (existingUserQuery.docs.isEmpty) {
+          setState(() => _isLoading = false);
+          _showErrorDialog(
+            'This phone number is not registered.\nPlease register first.',
+          );
+          return;
+        }
+
+        final userDoc = existingUserQuery.docs.first;
+        final userData = userDoc.data();
+        username = userData['username'];
+
+        if (username == null) {
+          setState(() => _isLoading = false);
+          _showErrorDialog(
+            'Your account setup is incomplete.\nPlease complete registration first.',
+          );
+          return;
+        }
+
+        final walletDoc = await firestore
+            .collection('wallets')
+            .doc(username)
+            .get();
+        final tPin = (walletDoc.data() as Map<String, dynamic>?)?['tPin'];
+
+        if (tPin == null) {
+          setState(() => _isLoading = false);
+          _showErrorDialog(
+            'You have not yet set your transaction PIN.\nPlease complete setup first.',
+          );
+          return;
+        }
+      }
+
+      // ✅ Proceed with OTP verification
       if (kIsWeb) {
         final confirmationResult = await _auth.signInWithPhoneNumber(
           fullPhoneNumber,
         );
-
-        setState(() {
-          _isLoading = false;
-        });
-
-        _navigateToWebOTPScreen(confirmationResult, fullPhoneNumber);
+        setState(() => _isLoading = false);
+        _navigateToWebOTPScreen(confirmationResult, fullPhoneNumber, username);
       } else {
         await _auth.verifyPhoneNumber(
           phoneNumber: fullPhoneNumber,
@@ -82,25 +152,24 @@ class _PhoneNumberEntryScreenState extends State<PhoneNumberEntryScreen> {
             _navigatePostOtp();
           },
           verificationFailed: (FirebaseAuthException e) {
-            setState(() {
-              _isLoading = false;
-            });
+            setState(() => _isLoading = false);
             _showErrorDialog('Verification failed: ${e.message}');
           },
           codeSent: (String verificationId, int? resendToken) {
-            setState(() {
-              _isLoading = false;
-            });
-            _navigateToOTPScreen(verificationId, fullPhoneNumber, resendToken);
+            setState(() => _isLoading = false);
+            _navigateToOTPScreen(
+              verificationId,
+              fullPhoneNumber,
+              resendToken,
+              username,
+            );
           },
           codeAutoRetrievalTimeout: (String verificationId) {},
           timeout: const Duration(seconds: 60),
         );
       }
     } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
       _showErrorDialog('Error: ${e.toString()}');
     }
   }
@@ -108,6 +177,7 @@ class _PhoneNumberEntryScreenState extends State<PhoneNumberEntryScreen> {
   void _navigateToWebOTPScreen(
     ConfirmationResult confirmationResult,
     String phoneNumber,
+    String? username,
   ) {
     Navigator.push(
       context,
@@ -117,7 +187,8 @@ class _PhoneNumberEntryScreenState extends State<PhoneNumberEntryScreen> {
           phoneNumber: phoneNumber,
           resendToken: null,
           confirmationResult: confirmationResult,
-          mode: widget.mode, // pass the mode along
+          mode: widget.mode,
+          username: username,
         ),
       ),
     );
@@ -127,6 +198,7 @@ class _PhoneNumberEntryScreenState extends State<PhoneNumberEntryScreen> {
     String verificationId,
     String phoneNumber,
     int? resendToken,
+    String? username,
   ) {
     Navigator.push(
       context,
@@ -135,7 +207,8 @@ class _PhoneNumberEntryScreenState extends State<PhoneNumberEntryScreen> {
           verificationId: verificationId,
           phoneNumber: phoneNumber,
           resendToken: resendToken,
-          mode: widget.mode, // pass the mode along
+          mode: widget.mode,
+          username: username,
         ),
       ),
     );
@@ -143,15 +216,9 @@ class _PhoneNumberEntryScreenState extends State<PhoneNumberEntryScreen> {
 
   void _navigatePostOtp() {
     if (widget.mode == OtpMode.registration) {
-      Navigator.pushNamed(
-        context,
-        '/kycPage',
-      ); // Navigate to KYC after registration
+      Navigator.pushNamed(context, '/kycPage');
     } else {
-      Navigator.pushNamed(
-        context,
-        '/dashboard',
-      ); // Navigate to Dashboard after login
+      Navigator.pushNamed(context, '/dashboard');
     }
   }
 

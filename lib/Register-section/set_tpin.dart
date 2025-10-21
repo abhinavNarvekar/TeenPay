@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../Dashboard/dashboard_temp.dart';
+import 'package:teenpay/login_or_register.dart';
 
 class SetNewPinScreen extends StatefulWidget {
   const SetNewPinScreen({Key? key}) : super(key: key);
@@ -91,7 +92,7 @@ class _SetNewPinScreenState extends State<SetNewPinScreen> {
           await walletRef.set({
             'username': _username,
             'tPin': _firstPin,
-            'balance':0.0,
+            'balance': 0.0,
             'createdAt': FieldValue.serverTimestamp(),
           });
 
@@ -106,7 +107,9 @@ class _SetNewPinScreenState extends State<SetNewPinScreen> {
           Future.delayed(const Duration(milliseconds: 500), () {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (context) => const TeenPayApp()),
+              MaterialPageRoute(
+                builder: (context) => const LoginOrRegisterScreen(),
+              ),
             );
           });
         } catch (e) {
