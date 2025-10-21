@@ -38,6 +38,27 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
     });
   }
 
+  // Record a transaction in Firestore
+  Future<void> logTransaction({
+    required String username,
+    required double amount,
+    required double newBalance,
+  }) async {
+    final transactionId = DateTime.now().millisecondsSinceEpoch.toString();
+    final transactionData = {
+      'transactionId': transactionId,
+      'username': username,
+      'type': 'credit',
+      'amount': amount,
+      'description': 'Money added to wallet',
+      'timestamp': FieldValue.serverTimestamp(),
+      'balanceAfter': newBalance,
+      'mode': 'manual add',
+    };
+
+    await _db.collection('transactions').doc(transactionId).set(transactionData);
+  }
+
   // Simulate the payment flow
   void _simulatePayment() async {
     final username = widget.username;
@@ -69,6 +90,13 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
 
       // Fetch updated balance
       final newBalance = await getBalance(username);
+
+      // Log transaction
+      await logTransaction(
+        username: username,
+        amount: amount,
+        newBalance: newBalance,
+      );
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
