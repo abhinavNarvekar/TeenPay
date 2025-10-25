@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AddMoneyScreen extends StatefulWidget {
   final String username;
+
   const AddMoneyScreen({Key? key, required this.username}) : super(key: key);
 
   @override
@@ -14,7 +15,7 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   bool _isProcessing = false;
 
-  // Fetch balance for a user
+  // Fetch current balance for the user
   Future<double> getBalance(String username) async {
     try {
       final doc = await _db.collection('wallets').doc(username).get();
@@ -26,19 +27,18 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
     }
   }
 
-  // Add money to wallet in rupees, preserving other fields
+  // Add money to the wallet (atomic update)
   Future<void> addMoney(String username, double amount) async {
     final ref = _db.collection('wallets').doc(username);
     await _db.runTransaction((txn) async {
       final snapshot = await txn.get(ref);
-      final current = snapshot.exists
-          ? (snapshot['balance'] as num).toDouble()
-          : 0.0;
+      final current =
+          snapshot.exists ? (snapshot['balance'] as num).toDouble() : 0.0;
       txn.set(ref, {'balance': current + amount}, SetOptions(merge: true));
     });
   }
 
-  // Record a transaction in Firestore
+  // Record the transaction inside transactions/{username}/userTxns
   Future<void> logTransaction({
     required String username,
     required double amount,
@@ -47,51 +47,56 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
     final transactionId = DateTime.now().millisecondsSinceEpoch.toString();
     final transactionData = {
       'transactionId': transactionId,
-      'username': username,
-      'type': 'credit',
+      'type': 'add_money',
       'amount': amount,
       'description': 'Money added to wallet',
       'timestamp': FieldValue.serverTimestamp(),
       'balanceAfter': newBalance,
       'mode': 'manual add',
+      'status': 'success',
     };
 
-    await _db.collection('transactions').doc(transactionId).set(transactionData);
+    await _db
+        .collection('transactions')
+        .doc(username)
+        .collection('userTxns')
+        .doc(transactionId)
+        .set(transactionData);
   }
 
-  // Simulate the payment flow
+  // Simulated payment and Firestore update
   void _simulatePayment() async {
     final username = widget.username;
     final amountInput = _amountController.text.trim();
 
     if (amountInput.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Enter amount')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter amount')),
+      );
       return;
     }
 
     final amount = double.tryParse(amountInput);
     if (amount == null || amount <= 0) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Enter a valid amount')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter a valid amount')),
+      );
       return;
     }
 
     setState(() => _isProcessing = true);
 
     try {
-      // Simulate payment delay
+      // Simulate delay like a payment gateway
       await Future.delayed(const Duration(seconds: 2));
 
       // Update wallet balance
       await addMoney(username, amount);
 
-      // Fetch updated balance
+      // Get updated balance
       final newBalance = await getBalance(username);
 
-      // Log transaction
+      // Log transaction in Firestore
       await logTransaction(
         username: username,
         amount: amount,
@@ -106,15 +111,15 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
         ),
       );
 
-      // Return to dashboard with new balance
+      // Return to dashboard with updated balance
       Future.delayed(const Duration(seconds: 1), () {
         Navigator.pop(context, newBalance);
       });
     } catch (e) {
       print('Payment failed: $e');
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Payment failed: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Payment failed: $e')),
+      );
     } finally {
       setState(() => _isProcessing = false);
     }
@@ -132,9 +137,8 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
             const SizedBox(height: 24),
             TextField(
               controller: _amountController,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
               decoration: const InputDecoration(
                 labelText: 'Amount (INR)',
                 border: OutlineInputBorder(),

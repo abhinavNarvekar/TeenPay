@@ -4,8 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'addmoneypage2.dart'; // <-- import AddMoneyScreen
 import 'entertpin.dart';
 import 'scan_qr_code.dart';
-
 import '../Profile-section/profile_page.dart';
+import 'transaction_history.dart'; // <-- import TransactionHistoryPage
 
 class TeenPayApp extends StatelessWidget {
   final String? username;
@@ -52,13 +52,8 @@ class _TeenPayDashboardState extends State<TeenPayDashboard> {
       case 0:
         return _homeContent();
       case 1:
-        return Center(
-          child: Text(
-            'History Screen\n(To be implemented)',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 22),
-          ),
-        );
+        // History screen navigates to TransactionHistoryPage directly
+        return TransactionHistoryPage(username: widget.username ?? '');
       case 2:
         return Center(
           child: Text(
@@ -143,18 +138,18 @@ class _TeenPayDashboardState extends State<TeenPayDashboard> {
 
   // ---------------------- HEADER TITLE ----------------------
   Widget _headerTitle() => const Center(
-    child: Padding(
-      padding: EdgeInsets.symmetric(vertical: 24),
-      child: Text(
-        'TeenPay',
-        style: TextStyle(
-          fontSize: 26,
-          fontWeight: FontWeight.bold,
-          color: Color(0xFF1F2937),
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 24),
+          child: Text(
+            'TeenPay',
+            style: TextStyle(
+              fontSize: 26,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1F2937),
+            ),
+          ),
         ),
-      ),
-    ),
-  );
+      );
 
   // ---------------------- BUILD ----------------------
   @override
@@ -314,317 +309,332 @@ class _TeenPayDashboardState extends State<TeenPayDashboard> {
 
   // ---------------------- QUICK ACTIONS ----------------------
   Widget _quickActionsRow() => SingleChildScrollView(
-    scrollDirection: Axis.horizontal,
-    padding: const EdgeInsets.symmetric(horizontal: 20),
-    child: Row(
-      children: [
-        _buildQuickAction(
-          Icons.qr_code_scanner,
-          'Scan any\nQR code',
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) =>  QrScannerPage(senderUsername: widget.username!)),
-            );
-          },
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Row(
+          children: [
+            _buildQuickAction(
+              Icons.qr_code_scanner,
+              'Scan any\nQR code',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) =>
+                          QrScannerPage(senderUsername: widget.username!)),
+                );
+              },
+            ),
+
+            const SizedBox(width: 22),
+
+            _buildQuickAction(Icons.people_outline, 'Pay to\nFriend'),
+
+            const SizedBox(width: 22),
+
+            _buildQuickAction(
+              Icons.add_circle_outline,
+              'Add\nMoney',
+              onTap: () async {
+                final updatedBalance = await Navigator.push<double>(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        AddMoneyScreen(username: widget.username!),
+                  ),
+                );
+                if (updatedBalance != null) {
+                  setState(() => walletBalance = updatedBalance);
+                }
+              },
+            ),
+
+            const SizedBox(width: 22),
+
+            _buildQuickAction(Icons.notifications_outlined, 'Pending\nRequest'),
+          ],
         ),
-
-        const SizedBox(width: 22),
-
-        _buildQuickAction(Icons.people_outline, 'Pay to\nFriend'),
-
-        const SizedBox(width: 22),
-
-        _buildQuickAction(
-          Icons.add_circle_outline,
-          'Add\nMoney',
-          onTap: () async {
-            final updatedBalance = await Navigator.push<double>(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    AddMoneyScreen(username: widget.username!),
-              ),
-            );
-            if (updatedBalance != null) {
-              setState(() => walletBalance = updatedBalance);
-            }
-          },
-        ),
-
-        const SizedBox(width: 22),
-
-        _buildQuickAction(Icons.notifications_outlined, 'Pending\nRequest'),
-      ],
-    ),
-  );
+      );
 
   Widget _buildQuickAction(
     IconData icon,
     String label, {
     VoidCallback? onTap,
-  }) => Column(
-    children: [
-      GestureDetector(
-        onTap: onTap,
+  }) =>
+      Column(
+        children: [
+          GestureDetector(
+            onTap: onTap,
+            child: Container(
+              width: 65,
+              height: 65,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.08),
+                    blurRadius: 12,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Icon(icon, color: const Color(0xFF2563EB), size: 26),
+            ),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: 80,
+            child: Text(
+              label,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 12,
+                color: Color(0xFF4B5563),
+                height: 1.2,
+              ),
+            ),
+          ),
+        ],
+      );
+
+  // ---------------------- RECENT CONTACTS ----------------------
+  Widget _recentContactsSection() => SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Row(
+          children: [
+            _buildContact('Ansh', Colors.blue),
+            const SizedBox(width: 18),
+            _buildContact('Abhinav', Colors.green),
+            const SizedBox(width: 18),
+            _buildContact('Darshani', Colors.purple),
+            const SizedBox(width: 18),
+            _buildContact('Sanat', Colors.orange),
+            const SizedBox(width: 18),
+            _buildMoreButton(),
+          ],
+        ),
+      );
+
+  Widget _buildContact(String name, Color color) => Column(
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: color.withOpacity(0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Center(
+              child: Text(
+                name[0],
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            name,
+            style: const TextStyle(fontSize: 12, color: Color(0xFF4B5563)),
+          ),
+        ],
+      );
+
+  Widget _buildMoreButton() => Column(
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: const Color(0xFFE5E7EB),
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.08),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: const Center(
+              child: Icon(Icons.more_horiz, color: Color(0xFF4B5563), size: 24),
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'More',
+            style: TextStyle(fontSize: 12, color: Color(0xFF4B5563)),
+          ),
+        ],
+      );
+
+  // ---------------------- OFFERS & REWARDS ----------------------
+  Widget _offersRewardsSection() => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
         child: Container(
-          width: 65,
-          height: 65,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+              colors: [Color(0xFFFBBF24), Color(0xFFF97316)],
+            ),
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.orange.withOpacity(0.3),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.all(20),
+          child: Row(
+            children: [
+              const Icon(Icons.card_giftcard, color: Colors.white, size: 42),
+              const SizedBox(width: 16),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: const [
+                  Text(
+                    'Rewards',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'Check your latest offers',
+                    style: TextStyle(color: Colors.white, fontSize: 14),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+
+  // ---------------------- MANAGE MONEY ----------------------
+  Widget _manageMoneySection() => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Container(
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(18),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.08),
-                blurRadius: 12,
-                offset: const Offset(0, 3),
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
               ),
             ],
           ),
-          child: Icon(icon, color: const Color(0xFF2563EB), size: 26),
-        ),
-      ),
-      const SizedBox(height: 10),
-      SizedBox(
-        width: 80,
-        child: Text(
-          label,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            fontSize: 12,
-            color: Color(0xFF4B5563),
-            height: 1.2,
-          ),
-        ),
-      ),
-    ],
-  );
-
-  // ---------------------- RECENT CONTACTS ----------------------
-  Widget _recentContactsSection() => SingleChildScrollView(
-    scrollDirection: Axis.horizontal,
-    padding: const EdgeInsets.symmetric(horizontal: 20),
-    child: Row(
-      children: [
-        _buildContact('Ansh', Colors.blue),
-        const SizedBox(width: 18),
-        _buildContact('Abhinav', Colors.green),
-        const SizedBox(width: 18),
-        _buildContact('Darshani', Colors.purple),
-        const SizedBox(width: 18),
-        _buildContact('Sanat', Colors.orange),
-        const SizedBox(width: 18),
-        _buildMoreButton(),
-      ],
-    ),
-  );
-
-  Widget _buildContact(String name, Color color) => Column(
-    children: [
-      Container(
-        width: 56,
-        height: 56,
-        decoration: BoxDecoration(
-          color: color,
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: color.withOpacity(0.3),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Center(
-          child: Text(
-            name[0],
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-      ),
-      const SizedBox(height: 8),
-      Text(
-        name,
-        style: const TextStyle(fontSize: 12, color: Color(0xFF4B5563)),
-      ),
-    ],
-  );
-
-  Widget _buildMoreButton() => Column(
-    children: [
-      Container(
-        width: 56,
-        height: 56,
-        decoration: BoxDecoration(
-          color: const Color(0xFFE5E7EB),
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.08),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: const Center(
-          child: Icon(Icons.more_horiz, color: Color(0xFF4B5563), size: 24),
-        ),
-      ),
-      const SizedBox(height: 8),
-      const Text(
-        'More',
-        style: TextStyle(fontSize: 12, color: Color(0xFF4B5563)),
-      ),
-    ],
-  );
-
-  // ---------------------- OFFERS & REWARDS ----------------------
-  Widget _offersRewardsSection() => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 20),
-    child: Container(
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
-          colors: [Color(0xFFFBBF24), Color(0xFFF97316)],
-        ),
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.orange.withOpacity(0.3),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.all(20),
-      child: Row(
-        children: [
-          const Icon(Icons.card_giftcard, color: Colors.white, size: 42),
-          const SizedBox(width: 16),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
-              Text(
-                'Rewards',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              SizedBox(height: 4),
-              Text(
-                'Check your latest offers',
-                style: TextStyle(color: Colors.white, fontSize: 14),
+          child: Column(
+            children: [
+              _buildManageOption(Icons.history, 'See transaction history', true,
+                  onTap: () {
+                if (widget.username != null) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          TransactionHistoryPage(username: widget.username!),
+                    ),
+                  );
+                }
+              }),
+              _buildManageOption(
+                Icons.account_balance_wallet_outlined,
+                'View Balance',
+                false,
+                onTap: () async {
+                  final balance = await Navigator.push<double>(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => EnterPinPage(
+                        username: widget.username!,
+                        navigateToWallet: true,
+                      ),
+                    ),
+                  );
+                  if (balance != null) {
+                    setState(() {
+                      walletBalance = balance;
+                      _isBalanceVisible = true;
+                    });
+                  }
+                },
               ),
             ],
           ),
-        ],
-      ),
-    ),
-  );
-
-  // ---------------------- MANAGE MONEY ----------------------
-  Widget _manageMoneySection() => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 20),
-    child: Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          _buildManageOption(Icons.history, 'See transaction history', true),
-          _buildManageOption(
-            Icons.account_balance_wallet_outlined,
-            'View Balance',
-            false,
-            onTap: () async {
-              final balance = await Navigator.push<double>(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => EnterPinPage(
-                    username: widget.username!,
-                    navigateToWallet: true,
-                  ),
-                ),
-              );
-              if (balance != null) {
-                setState(() {
-                  walletBalance = balance;
-                  _isBalanceVisible = true;
-                });
-              }
-            },
-          ),
-        ],
-      ),
-    ),
-  );
+        ),
+      );
 
   Widget _buildManageOption(
     IconData icon,
     String label,
     bool showDivider, {
     VoidCallback? onTap,
-  }) => InkWell(
-    onTap: onTap,
-    child: Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        border: showDivider
-            ? const Border(
-                bottom: BorderSide(color: Color(0xFFF3F4F6), width: 1),
-              )
-            : null,
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: const Color(0xFFEFF6FF),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: const Color(0xFF2563EB), size: 20),
+  }) =>
+      InkWell(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            border: showDivider
+                ? const Border(
+                    bottom: BorderSide(color: Color(0xFFF3F4F6), width: 1),
+                  )
+                : null,
           ),
-          const SizedBox(width: 12),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w500,
-              color: Color(0xFF374151),
-            ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: const Color(0xFF2563EB), size: 20),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF374151),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
-    ),
-  );
+        ),
+      );
 
   // ---------------------- SECTION TITLE ----------------------
   Widget _sectionTitle(String title) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-    child: Text(
-      title,
-      style: const TextStyle(
-        fontSize: 17,
-        fontWeight: FontWeight.w600,
-        color: Color(0xFF374151),
-      ),
-    ),
-  );
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        child: Text(
+          title,
+          style: const TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF374151),
+          ),
+        ),
+      );
 }
