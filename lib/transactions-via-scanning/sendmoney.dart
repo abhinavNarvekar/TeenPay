@@ -7,11 +7,19 @@ class SendMoneyScreen extends StatefulWidget {
   final String recipientUsername; // from scanned QR
   final String teenPayId; // from scanned QR
 
+  // Optional fields for prefilled request
+  final double? prefillAmount;
+  final String? prefillNote;
+  final String? requestId;
+
   const SendMoneyScreen({
     Key? key,
     required this.senderUsername,
     required this.recipientUsername,
     required this.teenPayId,
+    this.prefillAmount,
+    this.prefillNote,
+    this.requestId,
   }) : super(key: key);
 
   @override
@@ -28,6 +36,14 @@ class _SendMoneyScreenState extends State<SendMoneyScreen> {
   void initState() {
     super.initState();
     _fetchRecipientName();
+
+    // Prefill amount/note if coming from request
+    if (widget.prefillAmount != null) {
+      _amountController.text = widget.prefillAmount!.toStringAsFixed(0);
+    }
+    if (widget.prefillNote != null) {
+      _noteController.text = widget.prefillNote!;
+    }
   }
 
   Future<void> _fetchRecipientName() async {
@@ -43,7 +59,6 @@ class _SendMoneyScreenState extends State<SendMoneyScreen> {
       }
 
       final uid = usernameDoc['uid'];
-
       final kycDoc = await FirebaseFirestore.instance
           .collection('kyc')
           .doc(uid)
@@ -68,11 +83,9 @@ class _SendMoneyScreenState extends State<SendMoneyScreen> {
   }
 
   Future<void> _createTransactionAndEnterPin() async {
-    final amount = _amountController.text.isEmpty
-        ? '0.00'
-        : _amountController.text;
-    final note = _noteController.text;
-    final parsedAmount = double.tryParse(amount) ?? 0.0;
+    final parsedAmount =
+        widget.prefillAmount ?? double.tryParse(_amountController.text) ?? 0.0;
+    final note = widget.prefillNote ?? _noteController.text;
 
     if (parsedAmount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -91,7 +104,7 @@ class _SendMoneyScreenState extends State<SendMoneyScreen> {
           .collection('transactions')
           .doc(widget.senderUsername)
           .collection('userTxns')
-          .doc(); // generate unique txn ID
+          .doc(); // unique txn ID
 
       final txnDataSender = {
         'type': 'debit',
@@ -107,8 +120,7 @@ class _SendMoneyScreenState extends State<SendMoneyScreen> {
         'type': 'credit',
         'amount': parsedAmount,
         'counterparty': widget.senderUsername,
-        'counterpartyName':
-            widget.senderUsername, // optionally fetch sender name
+        'counterpartyName': widget.senderUsername,
         'note': note,
         'status': 'pending',
         'createdAt': FieldValue.serverTimestamp(),
@@ -122,16 +134,18 @@ class _SendMoneyScreenState extends State<SendMoneyScreen> {
           .collection('transactions')
           .doc(widget.recipientUsername)
           .collection('userTxns')
-          .doc(txnRef.id); // use same ID for easy reference
+          .doc(txnRef.id);
 
       await receiverRef.set(txnDataReceiver);
 
-      // 3. Navigate to EnterPinPage
+    
+
+      // 4. Navigate to EnterPinPage
       Navigator.push(
         context,
         MaterialPageRoute(
           builder: (_) => EnterPinPage(
-            username: widget.senderUsername, // verify sender's PIN
+            username: widget.senderUsername,
             transactionId: txnRef.id,
           ),
         ),

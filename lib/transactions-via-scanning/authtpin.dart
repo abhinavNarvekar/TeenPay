@@ -5,11 +5,13 @@ import 'receipt.dart'; // Your ReceiptScreen import
 class EnterPinPage extends StatefulWidget {
   final String username; // Sender's username
   final String transactionId; // Transaction ID
+  final String? requestId; // Optional request ID to delete after payment
 
   const EnterPinPage({
     Key? key,
     required this.username,
     required this.transactionId,
+    this.requestId,
   }) : super(key: key);
 
   @override
@@ -23,8 +25,9 @@ class _EnterPinPageState extends State<EnterPinPage> {
   void _onKeyPressed(String value) {
     setState(() {
       if (value == 'backspace') {
-        if (_enteredPin.isNotEmpty)
+        if (_enteredPin.isNotEmpty) {
           _enteredPin = _enteredPin.substring(0, _enteredPin.length - 1);
+        }
       } else if (_enteredPin.length < 6) {
         _enteredPin += value;
       }
@@ -37,6 +40,7 @@ class _EnterPinPageState extends State<EnterPinPage> {
     setState(() => _isVerifying = true);
 
     try {
+      // 1. Fetch sender wallet
       final walletRef = FirebaseFirestore.instance
           .collection('wallets')
           .doc(widget.username);
@@ -47,6 +51,7 @@ class _EnterPinPageState extends State<EnterPinPage> {
 
       if (_enteredPin != storedPin) throw 'Incorrect T-PIN';
 
+      // 2. Fetch transaction
       final senderTxnRef = FirebaseFirestore.instance
           .collection('transactions')
           .doc(widget.username)
@@ -69,7 +74,7 @@ class _EnterPinPageState extends State<EnterPinPage> {
           .collection('userTxns')
           .doc(widget.transactionId);
 
-      // Atomic update using Firestore transaction
+      // 3. Atomic transaction
       await FirebaseFirestore.instance.runTransaction((txn) async {
         final senderSnap = await txn.get(walletRef);
         final receiverSnap = await txn.get(receiverWalletRef);
@@ -93,26 +98,24 @@ class _EnterPinPageState extends State<EnterPinPage> {
         });
       });
 
-      // Fetch updated transaction to get verifiedAt timestamp
+      // 4. Delete request if exists
+      if (widget.requestId != null) {
+        await FirebaseFirestore.instance
+            .collection('requests')
+            .doc(widget.requestId)
+            .delete();
+      }
+
+      // 5. Navigate to ReceiptScreen
       final updatedSenderTxnDoc = await senderTxnRef.get();
       final verifiedAtTimestamp =
           updatedSenderTxnDoc['verifiedAt'] as Timestamp;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('✅ PIN verified! Transaction completed'),
-          backgroundColor: Colors.green,
-        ),
-      );
-
-      // Navigate to ReceiptScreen
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
           builder: (_) => ReceiptScreen(
-            senderUsername: txnData['counterparty'] == widget.username
-                ? txnData['counterparty']
-                : widget.username,
+            senderUsername: widget.username,
             recipientUsername: receiverUsername,
             recipientName: txnData['counterpartyName'] ?? receiverUsername,
             amount: amount,
@@ -122,13 +125,22 @@ class _EnterPinPageState extends State<EnterPinPage> {
           ),
         ),
       );
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✅ PIN verified! Transaction completed'),
+          backgroundColor: Colors.green,
+        ),
+      );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
       );
     } finally {
-      setState(() => _isVerifying = false);
-      _enteredPin = '';
+      setState(() {
+        _isVerifying = false;
+        _enteredPin = '';
+      });
     }
   }
 

@@ -3,7 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class TransactionHistoryPage extends StatefulWidget {
   final String username;
-  const TransactionHistoryPage({Key? key, required this.username}) : super(key: key);
+  const TransactionHistoryPage({Key? key, required this.username})
+    : super(key: key);
 
   @override
   State<TransactionHistoryPage> createState() => _TransactionHistoryPageState();
@@ -12,32 +13,66 @@ class TransactionHistoryPage extends StatefulWidget {
 class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
   String selectedFilter = 'All';
 
-  // Firestore stream to get transactions for a particular user
+  // ✅ Stream to fetch user transactions
   Stream<List<Transaction>> getUserTransactions() {
     return FirebaseFirestore.instance
         .collection('transactions')
         .doc(widget.username)
         .collection('userTxns')
-        .orderBy('timestamp', descending: true) // Use timestamp for ordering
+        .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs.map((doc) {
-              // Group "Add Money" transactions under "received"
-              TransactionType type;
-              final description = doc['description'].toString().toLowerCase();
-              if (doc['type'] == 'received' || description.contains('money added')) {
-                type = TransactionType.received;
-              } else {
-                type = TransactionType.sent;
-              }
+        .map((snapshot) {
+          return snapshot.docs.map((doc) {
+            final data = doc.data();
 
-              return Transaction(
-                name: widget.username, // Using username as name
-                description: doc['description'],
-                amount: (doc['amount'] as num).toDouble(),
-                type: type,
-                date: (doc['timestamp'] as Timestamp).toDate(),
-              );
-            }).toList());
+            final typeStr = (data['type'] ?? '').toString().toLowerCase();
+            final note = (data['note'] ?? '').toString();
+            final counterparty = data['counterparty'] ?? '';
+            final counterpartyName = data['counterpartyName'] ?? '';
+            final amount = (data['amount'] as num?)?.toDouble() ?? 0.0;
+
+            // ✅ Determine transaction type
+            TransactionType txnType;
+            if (typeStr == 'debit') {
+              txnType = TransactionType.sent;
+            } else if (typeStr == 'credit') {
+              txnType = TransactionType.received;
+            } else {
+              txnType = TransactionType.received; // fallback
+            }
+
+            // ✅ Determine display name
+            String displayName;
+            if (counterpartyName.isNotEmpty) {
+              displayName = counterpartyName;
+            } else if (counterparty.isNotEmpty) {
+              displayName = counterparty;
+            } else if (note.toLowerCase().contains('wallet') ||
+                note.toLowerCase().contains('add money')) {
+              displayName = 'Wallet Top-up';
+            } else {
+              displayName = txnType == TransactionType.received
+                  ? 'Money received'
+                  : 'Money sent';
+            }
+
+            // ✅ Determine transaction date
+            Timestamp? ts = data['verifiedAt'] ?? data['createdAt'];
+            final date = ts != null ? ts.toDate() : DateTime.now();
+
+            return Transaction(
+              name: displayName,
+              description: note.isNotEmpty
+                  ? note
+                  : (txnType == TransactionType.received
+                        ? 'Money received'
+                        : 'Money sent'),
+              amount: amount,
+              type: txnType,
+              date: date,
+            );
+          }).toList();
+        });
   }
 
   double calculateTotal(List<Transaction> transactions, TransactionType type) {
@@ -64,12 +99,6 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
             fontWeight: FontWeight.w600,
           ),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.filter_list, color: Colors.black87),
-            onPressed: () {},
-          ),
-        ],
       ),
       body: StreamBuilder<List<Transaction>>(
         stream: getUserTransactions(),
@@ -85,22 +114,30 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
           final transactions = snapshot.data!;
           final filteredTransactions = selectedFilter == 'All'
               ? transactions
-              : transactions.where((t) =>
-                  selectedFilter == 'Received'
+              : transactions.where((t) {
+                  return selectedFilter == 'Received'
                       ? t.type == TransactionType.received
-                      : t.type == TransactionType.sent).toList();
+                      : t.type == TransactionType.sent;
+                }).toList();
 
-          final totalReceived = calculateTotal(transactions, TransactionType.received);
+          final totalReceived = calculateTotal(
+            transactions,
+            TransactionType.received,
+          );
           final totalSent = calculateTotal(transactions, TransactionType.sent);
 
           return Column(
             children: [
+              // 🔍 Search + Filter
               Container(
                 color: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 child: Column(
                   children: [
-                    // Search Bar
+                    // Search Bar (currently static, you can implement search later)
                     Container(
                       decoration: BoxDecoration(
                         color: const Color(0xFFF5F7FA),
@@ -167,7 +204,7 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
                 ),
               ),
               const SizedBox(height: 16),
-              // Transaction List
+              // 🧾 Transaction List
               Expanded(
                 child: ListView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -188,11 +225,7 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
     final isSelected = selectedFilter == title;
     return Expanded(
       child: GestureDetector(
-        onTap: () {
-          setState(() {
-            selectedFilter = title;
-          });
-        },
+        onTap: () => setState(() => selectedFilter = title),
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
@@ -223,7 +256,12 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
     );
   }
 
-  Widget _buildSummaryCard(String title, double amount, Color color, IconData icon) {
+  Widget _buildSummaryCard(
+    String title,
+    double amount,
+    Color color,
+    IconData icon,
+  ) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.all(16),
@@ -352,8 +390,18 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
 
   String _formatDate(DateTime date) {
     final monthNames = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
 
     final month = monthNames[date.month - 1];
@@ -366,7 +414,7 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
   }
 }
 
-// Transaction Model
+// 📦 Transaction model
 enum TransactionType { received, sent }
 
 class Transaction {

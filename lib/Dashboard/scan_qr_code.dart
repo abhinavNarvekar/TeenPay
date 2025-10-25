@@ -161,3 +161,5 @@ class _QrScannerPageState extends State<QrScannerPage> {
     );
   }
 }
+// adb pair 192.168.0.108:42365  
+// adb connect 192.168.0.108:38619   

@@ -107,25 +107,6 @@ class ReceiptScreen extends StatelessWidget {
               ),
             ),
           ),
-          Positioned(
-            bottom: 20.0,
-            left: 16.0,
-            right: 16.0,
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12.0),
-                border: Border.all(color: Colors.grey[300]!),
-              ),
-              padding: const EdgeInsets.all(16.0),
-              child: Center(
-                child: Text(
-                  'Need Help ?',
-                  style: TextStyle(color: Colors.grey[700], fontSize: 16.0),
-                ),
-              ),
-            ),
-          ),
         ],
       ),
     );
@@ -219,7 +200,6 @@ class ReceiptScreen extends StatelessWidget {
       width: double.infinity,
       child: ElevatedButton(
         onPressed: () {
-          // Navigate to TeenPayDashboard and pass senderUsername
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(

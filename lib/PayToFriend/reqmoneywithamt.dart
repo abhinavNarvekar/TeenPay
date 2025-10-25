@@ -81,20 +81,19 @@ class _RequestMoneyScreenState extends State<RequestMoneyScreen> {
     setState(() => _isSendingRequest = true);
 
     try {
-      // Create request in Firestore
+      // Create request in top-level Firestore collection
       final requestRef = FirebaseFirestore.instance
           .collection('requests')
-          .doc(widget.senderUsername)
-          .collection('userRequests')
-          .doc(); // auto ID
+          .doc(); // auto-generated requestId
 
       await requestRef.set({
+        'requestId': requestRef.id, // optional, store ID inside document
         'senderUsername': widget.senderUsername,
         'receiverUsername': widget.receiverUsername,
         'receiverName': receiverName,
         'amount': parsedAmount,
         'note': _noteController.text.trim(),
-        'status': 'pending',
+        'status': 'pending', // pending, paid
         'createdAt': FieldValue.serverTimestamp(),
       });
 

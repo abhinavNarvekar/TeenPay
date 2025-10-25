@@ -32,8 +32,9 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
     final ref = _db.collection('wallets').doc(username);
     await _db.runTransaction((txn) async {
       final snapshot = await txn.get(ref);
-      final current =
-          snapshot.exists ? (snapshot['balance'] as num).toDouble() : 0.0;
+      final current = snapshot.exists
+          ? (snapshot['balance'] as num).toDouble()
+          : 0.0;
       txn.set(ref, {'balance': current + amount}, SetOptions(merge: true));
     });
   }
@@ -47,7 +48,7 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
     final transactionId = DateTime.now().millisecondsSinceEpoch.toString();
     final transactionData = {
       'transactionId': transactionId,
-      'type': 'add_money',
+      'type': 'credit',
       'amount': amount,
       'description': 'Money added to wallet',
       'timestamp': FieldValue.serverTimestamp(),
@@ -70,17 +71,17 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
     final amountInput = _amountController.text.trim();
 
     if (amountInput.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter amount')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Enter amount')));
       return;
     }
 
     final amount = double.tryParse(amountInput);
     if (amount == null || amount <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter a valid amount')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Enter a valid amount')));
       return;
     }
 
@@ -117,9 +118,9 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
       });
     } catch (e) {
       print('Payment failed: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Payment failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Payment failed: $e')));
     } finally {
       setState(() => _isProcessing = false);
     }
@@ -137,8 +138,9 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
             const SizedBox(height: 24),
             TextField(
               controller: _amountController,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               decoration: const InputDecoration(
                 labelText: 'Amount (INR)',
                 border: OutlineInputBorder(),

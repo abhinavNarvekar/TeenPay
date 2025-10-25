@@ -15,10 +15,11 @@ dependencies:
   qr_flutter: ^4.0.0
   share_plus: ^7.2.1
   qr_code_scanner_plus: ^2.0.7
-
+  mobile_scanner: ^3.3.0
   # ---------------- State management & utilities ----------------
   provider: ^6.0.5
   image_picker: ^1.2.0
+  
 
   # ---------------- Firebase packages ----------------
   firebase_core: ^4.1.1   # Required to initialize Firebase
