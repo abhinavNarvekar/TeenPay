@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter_contacts/flutter_contacts.dart';
-import 'package:teenpay/transactions-via-scanning/sendmoney.dart'; // Your SendMoneyScreen
+import 'package:teenpay/PayToFriend/friendviewpage.dart'; // PaymentHistoryScreen
 
 class PayToFriendPage extends StatefulWidget {
   final String currentUid;
@@ -13,112 +12,125 @@ class PayToFriendPage extends StatefulWidget {
 
 class _PayToFriendPageState extends State<PayToFriendPage> {
   final TextEditingController _searchController = TextEditingController();
-  List<Map<String, String>> _suggestions = [];
+  Map<String, String>? _friendResult;
   bool _isLoading = false;
-  List<String> _phoneContacts = [];
+  String _errorMessage = '';
+  String _senderUsername = '';
+  String _senderPhone = '';
 
   @override
   void initState() {
     super.initState();
-    _searchController.addListener(_onSearchChanged);
-    _loadPhoneContacts();
+    _fetchCurrentUserDetails();
   }
 
-  @override
-  void dispose() {
-    _searchController.removeListener(_onSearchChanged);
-    _searchController.dispose();
-    super.dispose();
-  }
+  // Fetch sender's username and phone from Firestore
+  Future<void> _fetchCurrentUserDetails() async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('usernames')
+          .doc(widget.currentUid)
+          .get();
 
-  void _onSearchChanged() {
-    _fetchSuggestions(_searchController.text.trim());
-  }
+      if (doc.exists) {
+        _senderUsername = doc.id;
 
-  Future<void> _loadPhoneContacts() async {
-    // Request permission and load contacts
-    if (await FlutterContacts.requestPermission()) {
-      final contacts = await FlutterContacts.getContacts(withProperties: true);
-      List<String> phoneNumbers = [];
-      for (var contact in contacts) {
-        for (var phone in contact.phones) {
-          String number = _normalizeNumber(phone.number);
-          if (number.isNotEmpty) phoneNumbers.add(number);
+        // Fetch sender's phone
+        final userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(widget.currentUid)
+            .get();
+
+        if (userDoc.exists) {
+          _senderPhone = userDoc.get('phone') ?? '';
         }
+      } else {
+        _senderUsername = widget.currentUid;
       }
-      setState(() => _phoneContacts = phoneNumbers);
+    } catch (e) {
+      print('Error fetching sender details: $e');
     }
   }
 
-  String _normalizeNumber(String number) {
-    // Remove +, spaces, -, etc.
-    return number.replaceAll(RegExp(r'\D'), '');
-  }
+  Future<void> _searchFriend() async {
+    String query = _searchController.text.trim();
+    if (query.isEmpty) return;
 
-  Future<void> _fetchSuggestions(String query) async {
-    if (query.isEmpty || _phoneContacts.isEmpty) {
-      setState(() => _suggestions = []);
-      return;
-    }
-
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+      _friendResult = null;
+    });
 
     try {
       final firestore = FirebaseFirestore.instance;
-      final results = <Map<String, String>>[];
+      Map<String, String>? result;
 
-      String searchNumber = _normalizeNumber(query);
+      // 1️⃣ Search by username
+      final usernameDoc = await firestore.collection('usernames').doc(query).get();
+      if (usernameDoc.exists && usernameDoc.id != _senderUsername) {
+        result = {
+          'uid': usernameDoc['uid'],
+          'username': usernameDoc.id,
+          'phone': '', // will fetch below
+        };
 
-      // Get current user's phone number (to skip self)
-      final currentUserDoc =
-          await firestore.collection('contacts').doc(widget.currentUid).get();
-      String? currentUserNumber;
-      if (currentUserDoc.exists) {
-        currentUserNumber =
-            currentUserDoc.id.replaceAll(RegExp(r'\D'), ''); // digits only
+        final userDoc = await firestore
+            .collection('users')
+            .doc(usernameDoc['uid'])
+            .get();
+        if (userDoc.exists) result['phone'] = userDoc.get('phone') ?? '';
       }
 
-      // Fetch all registered contacts once (for efficiency)
-      final registeredContacts = await firestore.collection('contacts').get();
+      // 2️⃣ Search by phone number if username search failed
+      if (result == null) {
+        if (!query.startsWith('+')) query = '+91$query';
 
-      for (var doc in registeredContacts.docs) {
-        String firestoreNumber = doc.id.replaceAll(RegExp(r'\D'), '');
+        final contactDoc = await firestore.collection('contacts').doc(query).get();
+        if (contactDoc.exists && contactDoc['uid'] != widget.currentUid) {
+          final uid = contactDoc['uid'];
 
-        // Check if the number exists in the user's phone contacts
-        bool isInPhoneContacts = _phoneContacts.any((num) {
-          String cleaned = _normalizeNumber(num);
-          return cleaned.endsWith(firestoreNumber);
-        });
+          // Fetch username from usernames collection
+          final userQuery = await firestore
+              .collection('usernames')
+              .where('uid', isEqualTo: uid)
+              .limit(1)
+              .get();
 
-        // Apply filters
-        if (isInPhoneContacts &&
-            firestoreNumber.contains(searchNumber) &&
-            firestoreNumber != currentUserNumber) {
-          results.add({
-            'uid': doc['uid'],
-            'username': doc.data().containsKey('username') ? doc['username'] : '',
-            'phone': doc.id,
-          });
+          String username = '';
+          if (userQuery.docs.isNotEmpty) username = userQuery.docs.first.id;
+
+          result = {
+            'uid': uid,
+            'username': username,
+            'phone': contactDoc.id,
+          };
         }
       }
 
-      setState(() => _suggestions = results);
+      if (result != null) {
+        _friendResult = result;
+      } else {
+        _errorMessage = 'No user found for "$query".';
+      }
     } catch (e) {
-      print('Error fetching suggestions: $e');
+      _errorMessage = 'Error searching user: $e';
     }
 
     setState(() => _isLoading = false);
   }
 
+  // Navigate to PaymentHistoryScreen with full sender + receiver info
   void _onFriendSelected(Map<String, String> friend) {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => SendMoneyScreen(
-          senderUsername: widget.currentUid,
-          recipientUsername:
-              friend['username']!.isNotEmpty ? friend['username']! : friend['phone']!,
-          teenPayId: friend['uid']!,
+        builder: (_) => PaymentHistoryScreen(
+          currentUsername: _senderUsername,
+          currentPhone: _senderPhone,
+          friendUsername: friend['username']!,
+          friendPhone: friend['phone'] ?? '',
+          recipientUid: friend['uid']!,
         ),
       ),
     );
@@ -140,7 +152,7 @@ class _PayToFriendPageState extends State<PayToFriendPage> {
       ),
       body: Column(
         children: [
-          // Search Bar
+          // Search bar
           Container(
             margin: const EdgeInsets.all(16),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -155,69 +167,59 @@ class _PayToFriendPageState extends State<PayToFriendPage> {
                 ),
               ],
             ),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Search by contact number',
-                hintStyle: TextStyle(color: Colors.grey[400], fontSize: 15),
-                prefixIcon: const Icon(Icons.search, color: Color(0xFF6C63FF), size: 24),
-                suffixIcon: _searchController.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear, size: 20),
-                        onPressed: () {
-                          _searchController.clear();
-                          setState(() => _suggestions = []);
-                        },
-                      )
-                    : null,
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(vertical: 12),
-              ),
-              keyboardType: TextInputType.phone,
-              style: const TextStyle(fontSize: 15),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _searchController,
+                    decoration: const InputDecoration(
+                      hintText: 'Enter username or phone number',
+                      border: InputBorder.none,
+                      prefixIcon:
+                          Icon(Icons.search, color: Color(0xFF6C63FF), size: 22),
+                    ),
+                    onSubmitted: (_) => _searchFriend(),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.arrow_forward, color: Color(0xFF6C63FF)),
+                  onPressed: _searchFriend,
+                ),
+              ],
             ),
           ),
 
-          // Suggestions List
-          _isLoading
-              ? const Padding(
-                  padding: EdgeInsets.all(20),
-                  child: CircularProgressIndicator(color: Color(0xFF6C63FF)),
-                )
-              : Expanded(
-                  child: _suggestions.isEmpty
-                      ? const Center(child: Text('No friends found'))
-                      : ListView.builder(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          itemCount: _suggestions.length,
-                          itemBuilder: (context, index) {
-                            final friend = _suggestions[index];
-                            final displayName = friend['username']!.isNotEmpty
-                                ? friend['username']!
-                                : friend['phone']!;
-                            final displayPhone = friend['phone'] ?? '';
+          if (_isLoading)
+            const Padding(
+              padding: EdgeInsets.all(20),
+              child: CircularProgressIndicator(color: Color(0xFF6C63FF)),
+            ),
 
-                            return Card(
-                              margin: const EdgeInsets.only(bottom: 12),
-                              child: ListTile(
-                                leading: CircleAvatar(
-                                  backgroundColor: const Color(0xFF6C63FF),
-                                  child: Text(
-                                    displayName[0].toUpperCase(),
-                                    style: const TextStyle(color: Colors.white),
-                                  ),
-                                ),
-                                title: Text(displayName),
-                                subtitle:
-                                    displayPhone.isNotEmpty ? Text(displayPhone) : null,
-                                trailing:
-                                    const Icon(Icons.arrow_forward_ios, size: 16),
-                                onTap: () => _onFriendSelected(friend),
-                              ),
-                            );
-                          },
-                        ),
+          if (_errorMessage.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Text(_errorMessage, style: const TextStyle(color: Colors.red)),
+            ),
+
+          if (_friendResult != null)
+            Card(
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: ListTile(
+                leading: const CircleAvatar(
+                  backgroundColor: Color(0xFF6C63FF),
+                  child: Icon(Icons.person, color: Colors.white),
                 ),
+                title: Text(
+                  _friendResult!['username']!.isNotEmpty
+                      ? _friendResult!['username']!
+                      : _friendResult!['phone']!,
+                ),
+                subtitle:
+                    _friendResult!['phone']!.isNotEmpty ? Text(_friendResult!['phone']!) : null,
+                trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                onTap: () => _onFriendSelected(_friendResult!),
+              ),
+            ),
         ],
       ),
     );

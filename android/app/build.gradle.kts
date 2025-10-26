@@ -6,7 +6,6 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
     
 }
-
 android {
     namespace = "com.abhinav.teenpay"
     compileSdk = flutter.compileSdkVersion
@@ -35,7 +34,7 @@ android {
     buildTypes {
         release {
             // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
+            // Signing with the debug keys for now, so flutter run --release works.
             signingConfig = signingConfigs.getByName("debug")
         }
     }
