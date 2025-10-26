@@ -13,65 +13,77 @@ class TransactionHistoryPage extends StatefulWidget {
 class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
   String selectedFilter = 'All';
 
-  // ✅ Stream to fetch user transactions
+  // ✅ Stream to fetch only "completed" user transactions
   Stream<List<Transaction>> getUserTransactions() {
     return FirebaseFirestore.instance
         .collection('transactions')
         .doc(widget.username)
         .collection('userTxns')
-        .orderBy('timestamp', descending: true) // ✅ changed to timestamp
         .snapshots()
         .map((snapshot) {
-          return snapshot.docs.map((doc) {
-            final data = doc.data();
+          final txns = snapshot.docs
+              .map((doc) {
+                final data = doc.data();
 
-            final typeStr = (data['type'] ?? '').toString().toLowerCase();
-            final note = (data['description'] ?? '').toString(); // ✅ description
-            final counterparty = data['counterparty'] ?? '';
-            final counterpartyName = data['counterpartyName'] ?? '';
-            final amount = (data['amount'] as num?)?.toDouble() ?? 0.0;
+                final status = (data['status'] ?? '').toString().toLowerCase();
+                if (status != 'completed') return null; // Skip non-completed
 
-            // ✅ Determine transaction type
-            TransactionType txnType;
-            if (typeStr == 'debit') {
-              txnType = TransactionType.sent;
-            } else if (typeStr == 'credit') {
-              txnType = TransactionType.received;
-            } else {
-              txnType = TransactionType.received; // fallback
-            }
+                final typeStr = (data['type'] ?? '').toString().toLowerCase();
+                final amount = (data['amount'] as num?)?.toDouble() ?? 0.0;
+                final note = (data['note'] ?? '').toString();
+                final description = (data['description'] ?? '').toString();
+                final counterparty = (data['counterparty'] ?? '').toString();
+                final counterpartyName = (data['counterpartyName'] ?? '')
+                    .toString();
 
-            // ✅ Determine display name
-            String displayName;
-            if (counterpartyName.isNotEmpty) {
-              displayName = counterpartyName;
-            } else if (counterparty.isNotEmpty) {
-              displayName = counterparty;
-            } else if (note.toLowerCase().contains('wallet') ||
-                note.toLowerCase().contains('add money')) {
-              displayName = 'Wallet Top-up';
-            } else {
-              displayName = txnType == TransactionType.received
-                  ? 'Money received'
-                  : 'Money sent';
-            }
+                // Determine transaction type
+                TransactionType txnType = typeStr == 'debit'
+                    ? TransactionType.sent
+                    : TransactionType.received;
 
-            // ✅ Determine transaction date
-            Timestamp? ts = data['timestamp']; // ✅ use timestamp
-            final date = ts != null ? ts.toDate() : DateTime.now();
+                // Determine display name
+                String displayName;
+                if (description.toLowerCase().contains('wallet') ||
+                    (data['mode'] ?? '').toString().toLowerCase().contains(
+                      'add',
+                    )) {
+                  displayName = 'Wallet Top-up';
+                } else if (counterpartyName.isNotEmpty) {
+                  displayName = counterpartyName;
+                } else if (counterparty.isNotEmpty) {
+                  displayName = counterparty;
+                } else {
+                  displayName = txnType == TransactionType.received
+                      ? 'Money received'
+                      : 'Money sent';
+                }
 
-            return Transaction(
-              name: displayName,
-              description: note.isNotEmpty
-                  ? note
-                  : (txnType == TransactionType.received
-                        ? 'Money received'
-                        : 'Money sent'),
-              amount: amount,
-              type: txnType,
-              date: date,
-            );
-          }).toList();
+                // Date handling
+                Timestamp? ts =
+                    data['verifiedAt'] ??
+                    data['timestamp'] ??
+                    data['createdAt'];
+                final date = ts != null ? ts.toDate() : DateTime.now();
+
+                return Transaction(
+                  name: displayName,
+                  description: description.isNotEmpty
+                      ? description
+                      : (txnType == TransactionType.received
+                            ? 'Money received'
+                            : 'Money sent'),
+                  amount: amount,
+                  type: txnType,
+                  date: date,
+                );
+              })
+              .whereType<Transaction>()
+              .toList(); // Remove nulls
+
+          // Sort by date descending
+          txns.sort((a, b) => b.date.compareTo(a.date));
+
+          return txns;
         });
   }
 
@@ -137,7 +149,7 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
                 ),
                 child: Column(
                   children: [
-                    // Search Bar (currently static, you can implement search later)
+                    // Search Bar
                     Container(
                       decoration: BoxDecoration(
                         color: const Color(0xFFF5F7FA),
