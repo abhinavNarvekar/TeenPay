@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:teenpay/transactions-via-scanning/sendmoney.dart';
+import 'reqmoneywithamt.dart';
 
 class PaymentHistoryScreen extends StatefulWidget {
   final String currentUsername;
@@ -24,23 +25,57 @@ class PaymentHistoryScreen extends StatefulWidget {
 }
 
 class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
+  String? friendName; // fetched from KYC table
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchFriendName();
+  }
+
+  Future<void> _fetchFriendName() async {
+    try {
+      final userDoc = await FirebaseFirestore.instance
+          .collection('usernames')
+          .doc(widget.friendUsername)
+          .get();
+
+      if (userDoc.exists) {
+        final friendUid = userDoc['uid'];
+        final kycDoc = await FirebaseFirestore.instance
+            .collection('kyc')
+            .doc(friendUid)
+            .get();
+
+        if (kycDoc.exists) {
+          setState(() {
+            friendName = kycDoc['name'];
+          });
+        }
+      }
+    } catch (e) {
+      print('Error fetching friend name: $e');
+    }
+  }
+
   Stream<QuerySnapshot> _getTransactionsStream() {
     return FirebaseFirestore.instance
         .collection('transactions')
         .doc(widget.currentUsername)
         .collection('userTxns')
-        .where('counterparty', isEqualTo: widget.friendUsername)
         .orderBy('createdAt', descending: true)
         .snapshots();
   }
 
   String _formatDate(Timestamp timestamp) {
-    DateTime date = timestamp.toDate();
+    final date = timestamp.toDate();
     return DateFormat('dd MMM, hh:mm a').format(date);
   }
 
   @override
   Widget build(BuildContext context) {
+    final displayName = friendName ?? widget.friendUsername;
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -62,7 +97,7 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    widget.friendUsername,
+                    displayName,
                     style: const TextStyle(
                       color: Colors.black,
                       fontSize: 16,
@@ -84,12 +119,6 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
             ),
           ],
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.more_vert, color: Colors.black),
-            onPressed: () {},
-          ),
-        ],
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: _getTransactionsStream(),
@@ -98,7 +127,19 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
             return const Center(child: CircularProgressIndicator());
           }
 
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          final allTxns = snapshot.data?.docs ?? [];
+          // Filter transactions: related to friend AND status == "completed"
+          final transactions = allTxns
+              .where(
+                (txn) =>
+                    (txn['counterparty'] ?? '') == widget.friendUsername &&
+                    (txn['status'] ?? '') == 'completed',
+              )
+              .toList()
+              .reversed
+              .toList(); // Reverse to show newest at bottom
+
+          if (transactions.isEmpty) {
             return const Center(
               child: Text(
                 'No transactions found between you and this user',
@@ -106,8 +147,6 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
               ),
             );
           }
-
-          final transactions = snapshot.data!.docs;
 
           return ListView.builder(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
@@ -152,7 +191,6 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            // Pay button navigates to SendMoneyScreen
             ElevatedButton(
               onPressed: () {
                 Navigator.push(
@@ -168,7 +206,10 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF3F51B5),
-                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 14),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 40,
+                  vertical: 14,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(20),
                 ),
@@ -179,10 +220,23 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
               ),
             ),
             ElevatedButton(
-              onPressed: () {},
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => RequestMoneyScreen(
+                      senderUsername: widget.currentUsername,
+                      receiverUsername: widget.friendUsername,
+                    ),
+                  ),
+                );
+              },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF3F51B5),
-                padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 14),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 30,
+                  vertical: 14,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(20),
                 ),
@@ -190,26 +244,6 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
               child: const Text(
                 'Request',
                 style: TextStyle(color: Colors.white, fontSize: 16),
-              ),
-            ),
-            OutlinedButton(
-              onPressed: () {},
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                side: BorderSide(color: Colors.grey[400]!),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-              ),
-              child: Row(
-                children: const [
-                  Text(
-                    'Message...',
-                    style: TextStyle(color: Colors.black54, fontSize: 14),
-                  ),
-                  SizedBox(width: 6),
-                  Icon(Icons.send, color: Colors.black54, size: 18),
-                ],
               ),
             ),
           ],
@@ -241,9 +275,7 @@ class TransactionCard extends StatelessWidget {
         constraints: const BoxConstraints(maxWidth: 280),
         padding: const EdgeInsets.all(16.0),
         decoration: BoxDecoration(
-          color: isReceived
-              ? Colors.green.shade50
-              : Colors.red.shade50, 
+          color: isReceived ? Colors.green.shade50 : Colors.red.shade50,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: isReceived ? Colors.green : Colors.red,
@@ -253,12 +285,10 @@ class TransactionCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title,
-                style: const TextStyle(
-                  color: Colors.black87,
-                  fontSize: 15,
-                  fontWeight: FontWeight.normal,
-                )),
+            Text(
+              title,
+              style: const TextStyle(color: Colors.black87, fontSize: 15),
+            ),
             const SizedBox(height: 8),
             Row(
               children: [
@@ -286,8 +316,10 @@ class TransactionCard extends StatelessWidget {
                   isReceived ? 'Received' : 'Paid',
                   style: const TextStyle(color: Colors.black54, fontSize: 13),
                 ),
-                Text(date,
-                    style: const TextStyle(color: Colors.black54, fontSize: 13)),
+                Text(
+                  date,
+                  style: const TextStyle(color: Colors.black54, fontSize: 13),
+                ),
               ],
             ),
           ],
