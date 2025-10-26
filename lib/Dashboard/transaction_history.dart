@@ -19,14 +19,14 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
         .collection('transactions')
         .doc(widget.username)
         .collection('userTxns')
-        .orderBy('createdAt', descending: true)
+        .orderBy('timestamp', descending: true) // ✅ changed to timestamp
         .snapshots()
         .map((snapshot) {
           return snapshot.docs.map((doc) {
             final data = doc.data();
 
             final typeStr = (data['type'] ?? '').toString().toLowerCase();
-            final note = (data['note'] ?? '').toString();
+            final note = (data['description'] ?? '').toString(); // ✅ description
             final counterparty = data['counterparty'] ?? '';
             final counterpartyName = data['counterpartyName'] ?? '';
             final amount = (data['amount'] as num?)?.toDouble() ?? 0.0;
@@ -57,7 +57,7 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
             }
 
             // ✅ Determine transaction date
-            Timestamp? ts = data['verifiedAt'] ?? data['createdAt'];
+            Timestamp? ts = data['timestamp']; // ✅ use timestamp
             final date = ts != null ? ts.toDate() : DateTime.now();
 
             return Transaction(

@@ -25,7 +25,7 @@ class OTPVerificationScreen extends StatefulWidget {
     this.resendToken,
     this.confirmationResult,
     required this.mode,
-    this.username, // <-- Added username
+    this.username,
   }) : super(key: key);
 
   @override
@@ -33,10 +33,8 @@ class OTPVerificationScreen extends StatefulWidget {
 }
 
 class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
-  final List<TextEditingController> _controllers = List.generate(
-    6,
-    (_) => TextEditingController(),
-  );
+  final List<TextEditingController> _controllers =
+      List.generate(6, (_) => TextEditingController());
   final List<FocusNode> _focusNodes = List.generate(6, (Index) => FocusNode());
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
@@ -156,20 +154,16 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
     setState(() => _isVerifying = false);
 
     if (widget.mode == OtpMode.login) {
-      // ✅ Use username passed from previous screen instead of fetching again
       final username = widget.username;
       if (username != null) {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) =>
-                TeenPayApp(username: username), // Pass username to dashboard
+            builder: (_) => TeenPayApp(username: username),
           ),
         );
       } else {
-        _showErrorDialog(
-          'Failed to retrieve username. Please try logging in again.',
-        );
+        _showErrorDialog('Failed to retrieve username. Please try logging in again.');
       }
     } else if (widget.mode == OtpMode.registration) {
       try {
@@ -188,6 +182,15 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                 'kycStatus': 'pending',
                 'createdAt': FieldValue.serverTimestamp(),
               });
+
+          // ✅ Add entry in contacts collection
+          await FirebaseFirestore.instance
+              .collection('contacts')
+              .doc(user.phoneNumber)
+              .set({
+            'uid': user.uid,
+            'createdAt': FieldValue.serverTimestamp(),
+          });
         }
 
         Navigator.pushReplacement(
@@ -220,9 +223,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
     try {
       if (kIsWeb) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Please go back and request a new code'),
-          ),
+          const SnackBar(content: Text('Please go back and request a new code')),
         );
         Navigator.pop(context);
       } else {
@@ -365,7 +366,6 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
               ),
             ),
           ),
-          // Custom Numeric Keyboard
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
             child: Column(
