@@ -8,8 +8,8 @@ import '../Profile-section/profile_page.dart';
 import 'transaction_history.dart'; // <-- import TransactionHistoryPage
 import 'seependingreq.dart';
 import 'paytofriend_s1.dart'; // <-- PayToFriendPage
-
 import '../PayToFriend/friendviewpage.dart';
+import 'rewardspage.dart'; // <-- import RewardsPage
 
 class TeenPayApp extends StatelessWidget {
   final String? username;
@@ -62,13 +62,7 @@ class _TeenPayDashboardState extends State<TeenPayDashboard> {
       case 1:
         return TransactionHistoryPage(username: widget.username ?? '');
       case 2:
-        return Center(
-          child: Text(
-            'Rewards Screen\n(To be implemented)',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 22),
-          ),
-        );
+        return RewardsPage(); // <-- Navigate to RewardsPage
       case 3:
         return ProfileScreen(username: widget.username);
       default:
@@ -170,18 +164,18 @@ class _TeenPayDashboardState extends State<TeenPayDashboard> {
 
   // ---------------------- HEADER TITLE ----------------------
   Widget _headerTitle() => const Center(
-    child: Padding(
-      padding: EdgeInsets.symmetric(vertical: 24),
-      child: Text(
-        'TeenPay',
-        style: TextStyle(
-          fontSize: 26,
-          fontWeight: FontWeight.bold,
-          color: Color(0xFF1F2937),
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 24),
+          child: Text(
+            'TeenPay',
+            style: TextStyle(
+              fontSize: 26,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1F2937),
+            ),
+          ),
         ),
-      ),
-    ),
-  );
+      );
 
   // ---------------------- DASHBOARD CONTENT ----------------------
   Widget _homeContent() {
@@ -289,7 +283,15 @@ class _TeenPayDashboardState extends State<TeenPayDashboard> {
           _recentContactsSection(),
           const SizedBox(height: 36),
           _sectionTitle('Offers and Rewards'),
-          _offersRewardsSection(),
+          GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const RewardsPage()),
+              );
+            },
+            child: _offersRewardsSection(),
+          ),
           const SizedBox(height: 36),
           _sectionTitle('Manage your Money!'),
           _manageMoneySection(),
@@ -301,114 +303,112 @@ class _TeenPayDashboardState extends State<TeenPayDashboard> {
 
   // ---------------------- QUICK ACTIONS ----------------------
   Widget _quickActionsRow() => SingleChildScrollView(
-    scrollDirection: Axis.horizontal,
-    padding: const EdgeInsets.symmetric(horizontal: 20),
-    child: Row(
-      children: [
-        _buildQuickAction(
-          Icons.qr_code_scanner,
-          'Scan any\nQR code',
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    QrScannerPage(senderUsername: widget.username!),
-              ),
-            );
-          },
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Row(
+          children: [
+            _buildQuickAction(
+              Icons.qr_code_scanner,
+              'Scan any\nQR code',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        QrScannerPage(senderUsername: widget.username!),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(width: 22),
+            _buildQuickAction(
+              Icons.people_outline,
+              'Pay to\nFriend',
+              onTap: () {
+                if (widget.username != null) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          PayToFriendPage(currentUid: widget.username!),
+                    ),
+                  );
+                }
+              },
+            ),
+            const SizedBox(width: 22),
+            _buildQuickAction(
+              Icons.add_circle_outline,
+              'Add\nMoney',
+              onTap: () async {
+                final updatedBalance = await Navigator.push<double>(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        AddMoneyScreen(username: widget.username!),
+                  ),
+                );
+                if (updatedBalance != null) {
+                  setState(() => walletBalance = updatedBalance);
+                }
+              },
+            ),
+            const SizedBox(width: 22),
+            _buildQuickAction(
+              Icons.notifications_outlined,
+              'Pending\nRequest',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        PendingRequestsPage(username: widget.username!),
+                  ),
+                );
+              },
+            ),
+          ],
         ),
-        const SizedBox(width: 22),
-        _buildQuickAction(
-          Icons.people_outline,
-          'Pay to\nFriend',
-          onTap: () {
-            if (widget.username != null) {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      PayToFriendPage(currentUid: widget.username!),
-                ),
-              );
-            }
-          },
-        ),
-        const SizedBox(width: 22),
-        _buildQuickAction(
-          Icons.add_circle_outline,
-          'Add\nMoney',
-          onTap: () async {
-            final updatedBalance = await Navigator.push<double>(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    AddMoneyScreen(username: widget.username!),
-              ),
-            );
-            if (updatedBalance != null) {
-              setState(() => walletBalance = updatedBalance);
-            }
-          },
-        ),
-        const SizedBox(width: 22),
-        _buildQuickAction(
-          Icons.notifications_outlined,
-          'Pending\nRequest',
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    PendingRequestsPage(username: widget.username!),
-              ),
-            );
-          },
-        ),
-      ],
-    ),
-  );
+      );
 
   Widget _buildQuickAction(
-    IconData icon,
-    String label, {
-    VoidCallback? onTap,
-  }) => Column(
-    children: [
-      GestureDetector(
-        onTap: onTap,
-        child: Container(
-          width: 65,
-          height: 65,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.08),
-                blurRadius: 12,
-                offset: const Offset(0, 3),
+          IconData icon, String label, {VoidCallback? onTap}) =>
+      Column(
+        children: [
+          GestureDetector(
+            onTap: onTap,
+            child: Container(
+              width: 65,
+              height: 65,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.08),
+                    blurRadius: 12,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
               ),
-            ],
+              child: Icon(icon, color: const Color(0xFF2563EB), size: 26),
+            ),
           ),
-          child: Icon(icon, color: const Color(0xFF2563EB), size: 26),
-        ),
-      ),
-      const SizedBox(height: 10),
-      SizedBox(
-        width: 80,
-        child: Text(
-          label,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            fontSize: 12,
-            color: Color(0xFF4B5563),
-            height: 1.2,
+          const SizedBox(height: 10),
+          SizedBox(
+            width: 80,
+            child: Text(
+              label,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 12,
+                color: Color(0xFF4B5563),
+                height: 1.2,
+              ),
+            ),
           ),
-        ),
-      ),
-    ],
-  );
+        ],
+      );
 
   // ---------------------- FETCH RECENT CONTACTS ----------------------
   Future<void> _fetchRecentContacts() async {
@@ -416,7 +416,6 @@ class _TeenPayDashboardState extends State<TeenPayDashboard> {
     if (username == null) return;
 
     try {
-      // Fetch latest 100 transactions without filtering by 'status' in query
       final querySnapshot = await FirebaseFirestore.instance
           .collection('transactions')
           .doc(username)
@@ -429,7 +428,6 @@ class _TeenPayDashboardState extends State<TeenPayDashboard> {
           .where((data) => data['status'] == 'completed')
           .toList();
 
-      // Sort by createdAt descending
       allTxns.sort((a, b) {
         final tsA = a['createdAt'] as Timestamp?;
         final tsB = b['createdAt'] as Timestamp?;
@@ -463,9 +461,8 @@ class _TeenPayDashboardState extends State<TeenPayDashboard> {
 
   // ---------------------- RECENT CONTACTS SECTION ----------------------
   Widget _recentContactsSection() {
-    final contactsToShow = _showAllContacts
-        ? _recentContacts
-        : _recentContacts.take(4).toList();
+    final contactsToShow =
+        _showAllContacts ? _recentContacts : _recentContacts.take(4).toList();
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -476,8 +473,7 @@ class _TeenPayDashboardState extends State<TeenPayDashboard> {
             final counterpartyUsername = contact['username']!;
             final name = contact['name'] ?? counterpartyUsername;
             final color =
-                Colors.primaries[counterpartyUsername.hashCode %
-                    Colors.primaries.length];
+                Colors.primaries[counterpartyUsername.hashCode % Colors.primaries.length];
 
             return Padding(
               padding: const EdgeInsets.only(right: 18),
@@ -497,297 +493,289 @@ class _TeenPayDashboardState extends State<TeenPayDashboard> {
     );
   }
 
-  // ---------------------- BUILD CONTACT WIDGET ----------------------
-  Widget _buildContact(
-    String name,
-    String counterpartyUsername,
-    Color color,
-  ) => Column(
-    children: [
-      GestureDetector(
-        onTap: () async {
-          final currentUsername = widget.username!;
-
-          // Fetch current user's phone
-          final currentUidDoc = await FirebaseFirestore.instance
-              .collection('usernames')
-              .doc(currentUsername)
-              .get();
-          final currentUid = currentUidDoc.data()?['uid'] as String?;
-          if (currentUid == null) return;
-
-          final currentUserDoc = await FirebaseFirestore.instance
-              .collection('users')
-              .doc(currentUid)
-              .get();
-          final currentPhone = currentUserDoc.data()?['phone'] as String? ?? '';
-
-          // Fetch friend's UID and phone
-          final friendUsernameDoc = await FirebaseFirestore.instance
-              .collection('usernames')
-              .doc(counterpartyUsername)
-              .get();
-          final friendUid = friendUsernameDoc.data()?['uid'] as String?;
-          if (friendUid == null) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Friend UID not found')),
-            );
-            return;
-          }
-
-          final friendUserDoc = await FirebaseFirestore.instance
-              .collection('users')
-              .doc(friendUid)
-              .get();
-          final friendPhone = friendUserDoc.data()?['phone'] as String? ?? '';
-
-          // Navigate to PaymentHistoryScreen
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => PaymentHistoryScreen(
-                currentUsername: currentUsername,
-                currentPhone: currentPhone,
-                friendUsername: counterpartyUsername,
-                friendPhone: friendPhone,
-                recipientUid: friendUid, // guaranteed non-null
-              ),
-            ),
-          );
-        },
-        child: Container(
-          width: 56,
-          height: 56,
-          decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: color.withOpacity(0.3),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Center(
-            child: Text(
-              name.isNotEmpty ? name[0].toUpperCase() : '?',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ),
-      ),
-      const SizedBox(height: 8),
-      SizedBox(
-        width: 60,
-        child: Text(
-          name,
-          overflow: TextOverflow.ellipsis,
-          textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 12, color: Color(0xFF4B5563)),
-        ),
-      ),
-    ],
-  );
-
-  Widget _buildMoreButton({VoidCallback? onTap}) => Column(
-    children: [
-      GestureDetector(
-        onTap: onTap,
-        child: Container(
-          width: 56,
-          height: 56,
-          decoration: BoxDecoration(
-            color: const Color(0xFFE5E7EB),
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.08),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Center(
-            child: Icon(
-              _showAllContacts ? Icons.expand_less : Icons.more_horiz,
-              color: const Color(0xFF4B5563),
-              size: 24,
-            ),
-          ),
-        ),
-      ),
-      const SizedBox(height: 8),
-      Text(
-        _showAllContacts ? 'Less' : 'More',
-        style: const TextStyle(fontSize: 12, color: Color(0xFF4B5563)),
-      ),
-    ],
-  );
-  // ---------------------- OFFERS & REWARDS ----------------------
-  Widget _offersRewardsSection() => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 20),
-    child: Container(
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
-          colors: [Color(0xFFFBBF24), Color(0xFFF97316)],
-        ),
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.orange.withOpacity(0.3),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.all(20),
-      child: Row(
+  Widget _buildContact(String name, String counterpartyUsername, Color color) =>
+      Column(
         children: [
-          const Icon(Icons.card_giftcard, color: Colors.white, size: 42),
-          const SizedBox(width: 16),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
-              Text(
-                'Rewards',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              SizedBox(height: 4),
-              Text(
-                'Check your latest offers',
-                style: TextStyle(color: Colors.white, fontSize: 14),
-              ),
-            ],
-          ),
-        ],
-      ),
-    ),
-  );
-
-  // ---------------------- MANAGE MONEY ----------------------
-  Widget _manageMoneySection() => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 20),
-    child: Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          _buildManageOption(
-            Icons.history,
-            'See transaction history',
-            true,
-            onTap: () {
-              if (widget.username != null) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        TransactionHistoryPage(username: widget.username!),
-                  ),
-                );
-              }
-            },
-          ),
-          _buildManageOption(
-            Icons.account_balance_wallet_outlined,
-            'View Balance',
-            false,
+          GestureDetector(
             onTap: () async {
-              final balance = await Navigator.push<double>(
+              final currentUsername = widget.username!;
+              final currentUidDoc = await FirebaseFirestore.instance
+                  .collection('usernames')
+                  .doc(currentUsername)
+                  .get();
+              final currentUid = currentUidDoc.data()?['uid'] as String?;
+              if (currentUid == null) return;
+
+              final currentUserDoc = await FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(currentUid)
+                  .get();
+              final currentPhone =
+                  currentUserDoc.data()?['phone'] as String? ?? '';
+
+              final friendUsernameDoc = await FirebaseFirestore.instance
+                  .collection('usernames')
+                  .doc(counterpartyUsername)
+                  .get();
+              final friendUid = friendUsernameDoc.data()?['uid'] as String?;
+              if (friendUid == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Friend UID not found')),
+                );
+                return;
+              }
+
+              final friendUserDoc = await FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(friendUid)
+                  .get();
+              final friendPhone =
+                  friendUserDoc.data()?['phone'] as String? ?? '';
+
+              Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => EnterPinPage(
-                    username: widget.username!,
-                    navigateToWallet: true,
+                  builder: (context) => PaymentHistoryScreen(
+                    currentUsername: currentUsername,
+                    currentPhone: currentPhone,
+                    friendUsername: counterpartyUsername,
+                    friendPhone: friendPhone,
+                    recipientUid: friendUid,
                   ),
                 ),
               );
-              if (balance != null) {
-                setState(() {
-                  walletBalance = balance;
-                  _isBalanceVisible = true;
-                });
-              }
             },
+            child: Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: color,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: color.withOpacity(0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Center(
+                child: Text(
+                  name.isNotEmpty ? name[0].toUpperCase() : '?',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: 60,
+            child: Text(
+              name,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 12, color: Color(0xFF4B5563)),
+            ),
           ),
         ],
-      ),
-    ),
-  );
+      );
 
-  Widget _buildManageOption(
-    IconData icon,
-    String label,
-    bool showDivider, {
-    VoidCallback? onTap,
-  }) => InkWell(
-    onTap: onTap,
-    child: Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        border: showDivider
-            ? const Border(
-                bottom: BorderSide(color: Color(0xFFF3F4F6), width: 1),
-              )
-            : null,
-      ),
-      child: Row(
+  Widget _buildMoreButton({VoidCallback? onTap}) => Column(
         children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: const Color(0xFFEFF6FF),
-              borderRadius: BorderRadius.circular(12),
+          GestureDetector(
+            onTap: onTap,
+            child: Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: const Color(0xFFE5E7EB),
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.08),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Center(
+                child: Icon(
+                  _showAllContacts ? Icons.expand_less : Icons.more_horiz,
+                  color: const Color(0xFF4B5563),
+                  size: 24,
+                ),
+              ),
             ),
-            child: Icon(icon, color: const Color(0xFF2563EB), size: 20),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(height: 8),
           Text(
-            label,
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w500,
-              color: Color(0xFF374151),
-            ),
+            _showAllContacts ? 'Less' : 'More',
+            style: const TextStyle(fontSize: 12, color: Color(0xFF4B5563)),
           ),
         ],
-      ),
-    ),
-  );
+      );
+
+  // ---------------------- OFFERS & REWARDS ----------------------
+  Widget _offersRewardsSection() => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+              colors: [Color(0xFFFBBF24), Color(0xFFF97316)],
+            ),
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.orange.withOpacity(0.3),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.all(20),
+          child: Row(
+            children: [
+              const Icon(Icons.card_giftcard, color: Colors.white, size: 42),
+              const SizedBox(width: 16),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: const [
+                  Text(
+                    'Rewards',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'Check your latest offers',
+                    style: TextStyle(color: Colors.white, fontSize: 14),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+
+  // ---------------------- MANAGE MONEY ----------------------
+  Widget _manageMoneySection() => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              _buildManageOption(
+                Icons.history,
+                'See transaction history',
+                true,
+                onTap: () {
+                  if (widget.username != null) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            TransactionHistoryPage(username: widget.username!),
+                      ),
+                    );
+                  }
+                },
+              ),
+              _buildManageOption(
+                Icons.account_balance_wallet_outlined,
+                'View Balance',
+                false,
+                onTap: () async {
+                  final balance = await Navigator.push<double>(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => EnterPinPage(
+                        username: widget.username!,
+                        navigateToWallet: true,
+                      ),
+                    ),
+                  );
+                  if (balance != null) {
+                    setState(() {
+                      walletBalance = balance;
+                      _isBalanceVisible = true;
+                    });
+                  }
+                },
+              ),
+            ],
+          ),
+        ),
+      );
+
+  Widget _buildManageOption(IconData icon, String label, bool showDivider,
+          {VoidCallback? onTap}) =>
+      InkWell(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            border: showDivider
+                ? const Border(
+                    bottom: BorderSide(color: Color(0xFFF3F4F6), width: 1),
+                  )
+                : null,
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: const Color(0xFF2563EB), size: 20),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF374151),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
 
   // ---------------------- SECTION TITLE ----------------------
   Widget _sectionTitle(String title) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-    child: Text(
-      title,
-      style: const TextStyle(
-        fontSize: 17,
-        fontWeight: FontWeight.w600,
-        color: Color(0xFF374151),
-      ),
-    ),
-  );
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        child: Text(
+          title,
+          style: const TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF374151),
+          ),
+        ),
+      );
 
   // ---------------------- BUILD ----------------------
   @override
