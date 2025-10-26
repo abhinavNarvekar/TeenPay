@@ -30,12 +30,14 @@ class _SendMoneyScreenState extends State<SendMoneyScreen> {
   final TextEditingController _amountController = TextEditingController();
   final TextEditingController _noteController = TextEditingController();
   String recipientName = 'Loading...';
+  String senderName = 'Loading...';
   bool _isCreatingTransaction = false;
 
   @override
   void initState() {
     super.initState();
     _fetchRecipientName();
+    _fetchSenderName();
 
     // Prefill amount/note if coming from request
     if (widget.prefillAmount != null) {
@@ -46,6 +48,7 @@ class _SendMoneyScreenState extends State<SendMoneyScreen> {
     }
   }
 
+  // Fetch recipient display name from KYC
   Future<void> _fetchRecipientName() async {
     try {
       final usernameDoc = await FirebaseFirestore.instance
@@ -72,6 +75,36 @@ class _SendMoneyScreenState extends State<SendMoneyScreen> {
     } catch (e) {
       print('Error fetching recipient name: $e');
       setState(() => recipientName = widget.recipientUsername);
+    }
+  }
+
+  // Fetch sender display name from KYC
+  Future<void> _fetchSenderName() async {
+    try {
+      final usernameDoc = await FirebaseFirestore.instance
+          .collection('usernames')
+          .doc(widget.senderUsername)
+          .get();
+
+      if (!usernameDoc.exists) {
+        setState(() => senderName = widget.senderUsername);
+        return;
+      }
+
+      final uid = usernameDoc['uid'];
+      final kycDoc = await FirebaseFirestore.instance
+          .collection('kyc')
+          .doc(uid)
+          .get();
+
+      setState(() {
+        senderName = kycDoc.exists
+            ? kycDoc['name'] ?? widget.senderUsername
+            : widget.senderUsername;
+      });
+    } catch (e) {
+      print('Error fetching sender name: $e');
+      setState(() => senderName = widget.senderUsername);
     }
   }
 
@@ -110,17 +143,18 @@ class _SendMoneyScreenState extends State<SendMoneyScreen> {
         'type': 'debit',
         'amount': parsedAmount,
         'counterparty': widget.recipientUsername,
-        'counterpartyName': recipientName,
+        'counterpartyName': recipientName, // recipient display name
         'note': note,
         'status': 'pending',
         'createdAt': FieldValue.serverTimestamp(),
       };
 
+      // Credit transaction for receiver now has sender's display name
       final txnDataReceiver = {
         'type': 'credit',
         'amount': parsedAmount,
         'counterparty': widget.senderUsername,
-        'counterpartyName': widget.senderUsername,
+        'counterpartyName': senderName, // ✅ sender display name
         'note': note,
         'status': 'pending',
         'createdAt': FieldValue.serverTimestamp(),
@@ -138,15 +172,14 @@ class _SendMoneyScreenState extends State<SendMoneyScreen> {
 
       await receiverRef.set(txnDataReceiver);
 
-    
-
-      // 4. Navigate to EnterPinPage
+      // 3. Navigate to EnterPinPage
       Navigator.push(
         context,
         MaterialPageRoute(
           builder: (_) => EnterPinPage(
             username: widget.senderUsername,
             transactionId: txnRef.id,
+            requestId: widget.requestId,
           ),
         ),
       );
