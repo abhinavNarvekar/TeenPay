@@ -15,7 +15,6 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   bool _isProcessing = false;
 
-  // Fetch current balance for the user
   Future<double> getBalance(String username) async {
     try {
       final doc = await _db.collection('wallets').doc(username).get();
@@ -27,7 +26,6 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
     }
   }
 
-  // Add money to the wallet (atomic update)
   Future<void> addMoney(String username, double amount) async {
     final ref = _db.collection('wallets').doc(username);
     await _db.runTransaction((txn) async {
@@ -39,7 +37,6 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
     });
   }
 
-  // Record the transaction inside transactions/{username}/userTxns
   Future<void> logTransaction({
     required String username,
     required double amount,
@@ -65,7 +62,6 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
         .set(transactionData);
   }
 
-  // Simulated payment and Firestore update
   void _simulatePayment() async {
     final username = widget.username;
     final amountInput = _amountController.text.trim();
@@ -85,19 +81,25 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
       return;
     }
 
+    // ✅ Restrict max add amount to ₹1000
+    if (amount > 1000) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You can only add up to ₹1000 at a time.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
     setState(() => _isProcessing = true);
 
     try {
-      // Simulate delay like a payment gateway
-      await Future.delayed(const Duration(seconds: 2));
-
-      // Update wallet balance
+      await Future.delayed(const Duration(seconds: 2)); // simulate gateway
       await addMoney(username, amount);
 
-      // Get updated balance
       final newBalance = await getBalance(username);
 
-      // Log transaction in Firestore
       await logTransaction(
         username: username,
         amount: amount,
@@ -112,7 +114,6 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
         ),
       );
 
-      // Return to dashboard with updated balance
       Future.delayed(const Duration(seconds: 1), () {
         Navigator.pop(context, newBalance);
       });
@@ -144,6 +145,7 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
               decoration: const InputDecoration(
                 labelText: 'Amount (INR)',
                 border: OutlineInputBorder(),
+                hintText: 'Enter up to ₹1000',
               ),
             ),
             const SizedBox(height: 24),

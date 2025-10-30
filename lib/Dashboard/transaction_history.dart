@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dashboard_temp.dart'; // ✅ Make sure this import points to your dashboard file
 
 class TransactionHistoryPage extends StatefulWidget {
   final String username;
@@ -36,12 +37,10 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
                 final counterpartyName = (data['counterpartyName'] ?? '')
                     .toString();
 
-                // Determine transaction type
                 TransactionType txnType = typeStr == 'debit'
                     ? TransactionType.sent
                     : TransactionType.received;
 
-                // Determine display name
                 String displayName;
                 if (description.toLowerCase().contains('wallet') ||
                     (data['mode'] ?? '').toString().toLowerCase().contains(
@@ -58,7 +57,6 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
                       : 'Money sent';
                 }
 
-                // Date handling
                 Timestamp? ts =
                     data['verifiedAt'] ??
                     data['timestamp'] ??
@@ -78,11 +76,9 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
                 );
               })
               .whereType<Transaction>()
-              .toList(); // Remove nulls
+              .toList();
 
-          // Sort by date descending
           txns.sort((a, b) => b.date.compareTo(a.date));
-
           return txns;
         });
   }
@@ -95,140 +91,159 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Colors.white,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black87),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          'Transaction History',
-          style: TextStyle(
-            color: Colors.black87,
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
+    return WillPopScope(
+      onWillPop: () async {
+        // ✅ Always go back to dashboard
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => TeenPayDashboard(username: widget.username),
+          ),
+        );
+        return false; // Prevent default back behavior
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          elevation: 0,
+          backgroundColor: Colors.white,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.black87),
+            onPressed: () {
+              // ✅ Go to dashboard even if opened from navbar
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) =>
+                      TeenPayDashboard(username: widget.username),
+                ),
+              );
+            },
+          ),
+          title: const Text(
+            'Transaction History',
+            style: TextStyle(
+              color: Colors.black87,
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
-      ),
-      body: StreamBuilder<List<Transaction>>(
-        stream: getUserTransactions(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text('No transactions found.'));
-          }
+        body: StreamBuilder<List<Transaction>>(
+          stream: getUserTransactions(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            } else if (snapshot.hasError) {
+              return Center(child: Text('Error: ${snapshot.error}'));
+            } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+              return const Center(child: Text('No transactions found.'));
+            }
 
-          final transactions = snapshot.data!;
-          final filteredTransactions = selectedFilter == 'All'
-              ? transactions
-              : transactions.where((t) {
-                  return selectedFilter == 'Received'
-                      ? t.type == TransactionType.received
-                      : t.type == TransactionType.sent;
-                }).toList();
+            final transactions = snapshot.data!;
+            final filteredTransactions = selectedFilter == 'All'
+                ? transactions
+                : transactions.where((t) {
+                    return selectedFilter == 'Received'
+                        ? t.type == TransactionType.received
+                        : t.type == TransactionType.sent;
+                  }).toList();
 
-          final totalReceived = calculateTotal(
-            transactions,
-            TransactionType.received,
-          );
-          final totalSent = calculateTotal(transactions, TransactionType.sent);
+            final totalReceived = calculateTotal(
+              transactions,
+              TransactionType.received,
+            );
+            final totalSent = calculateTotal(
+              transactions,
+              TransactionType.sent,
+            );
 
-          return Column(
-            children: [
-              // 🔍 Search + Filter
-              Container(
-                color: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-                child: Column(
-                  children: [
-                    // Search Bar
-                    Container(
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF5F7FA),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: TextField(
-                        decoration: InputDecoration(
-                          hintText: 'Search transactions',
-                          hintStyle: TextStyle(
-                            color: Colors.grey[400],
-                            fontSize: 14,
-                          ),
-                          prefixIcon: Icon(
-                            Icons.search,
-                            color: Colors.grey[400],
-                          ),
-                          border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
+            return Column(
+              children: [
+                Container(
+                  color: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  child: Column(
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF5F7FA),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: TextField(
+                          decoration: InputDecoration(
+                            hintText: 'Search transactions',
+                            hintStyle: TextStyle(
+                              color: Colors.grey[400],
+                              fontSize: 14,
+                            ),
+                            prefixIcon: Icon(
+                              Icons.search,
+                              color: Colors.grey[400],
+                            ),
+                            border: InputBorder.none,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    // Filter Tabs
-                    Container(
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF5F7FA),
-                        borderRadius: BorderRadius.circular(12),
+                      const SizedBox(height: 16),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF5F7FA),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.all(4),
+                        child: Row(
+                          children: [
+                            _buildFilterTab('All'),
+                            _buildFilterTab('Received'),
+                            _buildFilterTab('Sent'),
+                          ],
+                        ),
                       ),
-                      padding: const EdgeInsets.all(4),
-                      child: Row(
-                        children: [
-                          _buildFilterTab('All'),
-                          _buildFilterTab('Received'),
-                          _buildFilterTab('Sent'),
-                        ],
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              // Summary Cards
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  children: [
-                    _buildSummaryCard(
-                      'Received',
-                      totalReceived,
-                      Colors.green,
-                      Icons.arrow_downward,
-                    ),
-                    const SizedBox(width: 12),
-                    _buildSummaryCard(
-                      'Sent',
-                      totalSent,
-                      Colors.blue,
-                      Icons.arrow_upward,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              // 🧾 Transaction List
-              Expanded(
-                child: ListView.builder(
+                const SizedBox(height: 16),
+                Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: filteredTransactions.length,
-                  itemBuilder: (context, index) {
-                    return _buildTransactionCard(filteredTransactions[index]);
-                  },
+                  child: Row(
+                    children: [
+                      _buildSummaryCard(
+                        'Received',
+                        totalReceived,
+                        Colors.green,
+                        Icons.arrow_downward,
+                      ),
+                      const SizedBox(width: 12),
+                      _buildSummaryCard(
+                        'Sent',
+                        totalSent,
+                        Colors.blue,
+                        Icons.arrow_upward,
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
-          );
-        },
+                const SizedBox(height: 16),
+                Expanded(
+                  child: ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: filteredTransactions.length,
+                    itemBuilder: (context, index) {
+                      return _buildTransactionCard(filteredTransactions[index]);
+                    },
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -422,7 +437,7 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
     final minute = date.minute.toString().padLeft(2, '0');
     final period = date.hour >= 12 ? 'pm' : 'am';
 
-    return '$month $day, ${hour}:${minute}$period';
+    return '$month $day, $hour:$minute$period';
   }
 }
 

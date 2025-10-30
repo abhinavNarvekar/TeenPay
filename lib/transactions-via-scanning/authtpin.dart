@@ -74,7 +74,7 @@ class _EnterPinPageState extends State<EnterPinPage> {
           .collection('userTxns')
           .doc(widget.transactionId);
 
-      // 3. Atomic transaction
+      // 3. Atomic money transaction
       await FirebaseFirestore.instance.runTransaction((txn) async {
         final senderSnap = await txn.get(walletRef);
         final receiverSnap = await txn.get(receiverWalletRef);
@@ -98,7 +98,37 @@ class _EnterPinPageState extends State<EnterPinPage> {
         });
       });
 
-      // 4. Delete request if exists
+      // 4. Reward system update
+      final rewardsRef = FirebaseFirestore.instance
+          .collection('rewards')
+          .doc(widget.username);
+      final rewardsHistoryRef = rewardsRef.collection('history');
+
+      await FirebaseFirestore.instance.runTransaction((txn) async {
+        final rewardsSnap = await txn.get(rewardsRef);
+        double currentPoints = 0.0;
+
+        // Initialize rewards doc if not exists
+        if (!rewardsSnap.exists) {
+          txn.set(rewardsRef, {'totalPoints': 0});
+        } else {
+          currentPoints = (rewardsSnap['totalPoints'] as num).toDouble();
+        }
+
+        // Update total points (+5)
+        txn.update(rewardsRef, {'totalPoints': currentPoints + 5});
+
+        // Add history entry
+        final newPointRef = rewardsHistoryRef.doc(); // auto pointId
+        txn.set(newPointRef, {
+          'pointId': newPointRef.id,
+          'points': 5,
+          'description': 'Earned for successful transaction',
+          'timestamp': FieldValue.serverTimestamp(),
+        });
+      });
+
+      // 5. Delete request if exists
       if (widget.requestId != null) {
         await FirebaseFirestore.instance
             .collection('requests')
@@ -106,7 +136,7 @@ class _EnterPinPageState extends State<EnterPinPage> {
             .delete();
       }
 
-      // 5. Navigate to ReceiptScreen
+      // 6. Navigate to ReceiptScreen
       final updatedSenderTxnDoc = await senderTxnRef.get();
       final verifiedAtTimestamp =
           updatedSenderTxnDoc['verifiedAt'] as Timestamp;
@@ -128,7 +158,9 @@ class _EnterPinPageState extends State<EnterPinPage> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('✅ PIN verified! Transaction completed'),
+          content: Text(
+            '✅ PIN verified! Transaction completed & 5 points added',
+          ),
           backgroundColor: Colors.green,
         ),
       );

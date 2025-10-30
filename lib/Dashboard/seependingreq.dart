@@ -60,7 +60,6 @@ class _PendingRequestsPageState extends State<PendingRequestsPage> {
           Expanded(child: _buildRequestsList()),
         ],
       ),
-      bottomNavigationBar: _buildBottomNavigationBar(),
     );
   }
 
@@ -178,7 +177,6 @@ class _PendingRequestsPageState extends State<PendingRequestsPage> {
           );
         }
 
-        // Filter client-side
         List<QueryDocumentSnapshot> filteredDocs = snapshot.data!.docs.where((
           doc,
         ) {
@@ -192,7 +190,6 @@ class _PendingRequestsPageState extends State<PendingRequestsPage> {
               note.contains(searchQuery);
         }).toList();
 
-        // Sort by createdAt descending
         filteredDocs.sort((a, b) {
           Timestamp t1 = a['createdAt'] ?? Timestamp.now();
           Timestamp t2 = b['createdAt'] ?? Timestamp.now();
@@ -214,7 +211,7 @@ class _PendingRequestsPageState extends State<PendingRequestsPage> {
           itemBuilder: (context, index) {
             Map<String, dynamic> data =
                 filteredDocs[index].data() as Map<String, dynamic>;
-            data['requestId'] = filteredDocs[index].id; // add doc id
+            data['requestId'] = filteredDocs[index].id;
             return RequestCard(
               data: data,
               isReceived: isReceivedSelected,
@@ -227,7 +224,6 @@ class _PendingRequestsPageState extends State<PendingRequestsPage> {
   }
 
   Stream<QuerySnapshot> _getRequestsStream() {
-    // Only pending requests
     if (isReceivedSelected) {
       return FirebaseFirestore.instance
           .collection('requests')
@@ -241,42 +237,6 @@ class _PendingRequestsPageState extends State<PendingRequestsPage> {
           .where('status', isEqualTo: 'pending')
           .snapshots();
     }
-  }
-
-  Widget _buildBottomNavigationBar() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.2),
-            spreadRadius: 1,
-            blurRadius: 10,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
-      child: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.white,
-        selectedItemColor: Colors.blue,
-        unselectedItemColor: Colors.grey,
-        currentIndex: 1,
-        elevation: 0,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.history), label: 'History'),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.star_border),
-            label: 'Reward',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline),
-            label: 'Profile',
-          ),
-        ],
-      ),
-    );
   }
 }
 
@@ -389,7 +349,6 @@ class RequestCard extends StatelessWidget {
 
   String _formatDate(Timestamp? timestamp) {
     if (timestamp == null) return '';
-
     DateTime dateTime = timestamp.toDate();
     DateTime now = DateTime.now();
     DateTime today = DateTime(now.year, now.month, now.day);
@@ -401,8 +360,8 @@ class RequestCard extends StatelessWidget {
     );
     String timeStr = DateFormat('h:mm a').format(dateTime);
 
-    if (messageDate == today) return 'Today . $timeStr';
-    if (messageDate == yesterday) return 'Yesterday . $timeStr';
-    return '${DateFormat('MMM d').format(dateTime)} . $timeStr';
+    if (messageDate == today) return 'Today • $timeStr';
+    if (messageDate == yesterday) return 'Yesterday • $timeStr';
+    return '${DateFormat('MMM d').format(dateTime)} • $timeStr';
   }
 }

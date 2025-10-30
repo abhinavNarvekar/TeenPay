@@ -203,14 +203,14 @@ class _WalletBalancePageState extends State<WalletBalancePage> {
 
                         // Unopened Reward Card
                         GestureDetector(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const RewardClaimPage(),
-                              ),
-                            );
-                          },
+                          // onTap: () {
+                          //   Navigator.push(
+                          //     context,
+                          //     // MaterialPageRoute(
+                          //     //   // builder: (_) => const RewardClaimPage(),
+                          //     // ),
+                          //   );
+                          // },
                           child: Container(
                             width: double.infinity,
                             padding: const EdgeInsets.all(16),
