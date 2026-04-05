@@ -1,10 +1,9 @@
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 
 class AddMoneyScreen extends StatefulWidget {
-  final String username;
-
-  const AddMoneyScreen({Key? key, required this.username}) : super(key: key);
+  const AddMoneyScreen({Key? key}) : super(key: key);
 
   @override
   State<AddMoneyScreen> createState() => _AddMoneyScreenState();
@@ -15,9 +14,17 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   bool _isProcessing = false;
 
-  Future<double> getBalance(String username) async {
+  late String uid;
+
+  @override
+  void initState() {
+    super.initState();
+    uid = FirebaseAuth.instance.currentUser!.uid;
+  }
+
+  Future<double> getBalance() async {
     try {
-      final doc = await _db.collection('wallets').doc(username).get();
+      final doc = await _db.collection('wallets').doc(uid).get();
       if (!doc.exists) return 0.0;
       return (doc['balance'] as num).toDouble();
     } catch (e) {
@@ -26,23 +33,26 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
     }
   }
 
-  Future<void> addMoney(String username, double amount) async {
-    final ref = _db.collection('wallets').doc(username);
+  Future<void> addMoney(double amount) async {
+    final ref = _db.collection('wallets').doc(uid);
+
     await _db.runTransaction((txn) async {
       final snapshot = await txn.get(ref);
+
       final current = snapshot.exists
           ? (snapshot['balance'] as num).toDouble()
           : 0.0;
+
       txn.set(ref, {'balance': current + amount}, SetOptions(merge: true));
     });
   }
 
   Future<void> logTransaction({
-    required String username,
     required double amount,
     required double newBalance,
   }) async {
     final transactionId = DateTime.now().millisecondsSinceEpoch.toString();
+
     final transactionData = {
       'transactionId': transactionId,
       'type': 'credit',
@@ -51,19 +61,20 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
       'timestamp': FieldValue.serverTimestamp(),
       'balanceAfter': newBalance,
       'mode': 'manual add',
-      'status': 'success',
+      'status': 'completed',
+      'counterparty': 'self',
+      'counterpartyName': 'Wallet Top-up',
     };
 
     await _db
         .collection('transactions')
-        .doc(username)
+        .doc(uid)
         .collection('userTxns')
         .doc(transactionId)
         .set(transactionData);
   }
 
   void _simulatePayment() async {
-    final username = widget.username;
     final amountInput = _amountController.text.trim();
 
     if (amountInput.isEmpty) {
@@ -81,7 +92,7 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
       return;
     }
 
-    // ✅ Restrict max add amount to ₹1000
+    // ✅ limit ₹1000
     if (amount > 1000) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -95,21 +106,18 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
     setState(() => _isProcessing = true);
 
     try {
-      await Future.delayed(const Duration(seconds: 2)); // simulate gateway
-      await addMoney(username, amount);
+      await Future.delayed(const Duration(seconds: 2));
 
-      final newBalance = await getBalance(username);
+      await addMoney(amount);
 
-      await logTransaction(
-        username: username,
-        amount: amount,
-        newBalance: newBalance,
-      );
+      final newBalance = await getBalance();
+
+      await logTransaction(amount: amount, newBalance: newBalance);
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Payment success! New balance for $username: ₹${newBalance.toStringAsFixed(2)}',
+            'Payment success! New balance: ₹${newBalance.toStringAsFixed(2)}',
           ),
         ),
       );
@@ -134,7 +142,6 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             const SizedBox(height: 24),
             TextField(

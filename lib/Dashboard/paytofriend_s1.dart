@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 import 'package:teenpay/PayToFriend/friendviewpage.dart'; // PaymentHistoryScreen
 
 class PayToFriendPage extends StatefulWidget {
@@ -15,7 +15,6 @@ class _PayToFriendPageState extends State<PayToFriendPage> {
   Map<String, String>? _friendResult;
   bool _isLoading = false;
   String _errorMessage = '';
-  String _senderUsername = '';
   String _senderPhone = '';
 
   @override
@@ -27,25 +26,13 @@ class _PayToFriendPageState extends State<PayToFriendPage> {
   // Fetch sender's username and phone from Firestore
   Future<void> _fetchCurrentUserDetails() async {
     try {
-      final doc = await FirebaseFirestore.instance
-          .collection('usernames')
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
           .doc(widget.currentUid)
           .get();
 
-      if (doc.exists) {
-        _senderUsername = doc.id;
-
-        // Fetch sender's phone
-        final userDoc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(widget.currentUid)
-            .get();
-
-        if (userDoc.exists) {
-          _senderPhone = userDoc.get('phone') ?? '';
-        }
-      } else {
-        _senderUsername = widget.currentUid;
+      if (userDoc.exists) {
+        _senderPhone = userDoc.get('phone') ?? '';
       }
     } catch (e) {
       print('Error fetching sender details: $e');
@@ -63,60 +50,32 @@ class _PayToFriendPageState extends State<PayToFriendPage> {
     });
 
     try {
-      final firestore = FirebaseFirestore.instance;
-      Map<String, String>? result;
+      if (!query.startsWith('+')) query = '+91$query';
 
-      // 1️⃣ Search by username
-      final usernameDoc = await firestore
-          .collection('usernames')
+      final contactDoc = await FirebaseFirestore.instance
+          .collection('contacts')
           .doc(query)
           .get();
-      if (usernameDoc.exists && usernameDoc.id != _senderUsername) {
-        result = {
-          'uid': usernameDoc['uid'],
-          'username': usernameDoc.id,
-          'phone': '', // will fetch below
-        };
 
-        final userDoc = await firestore
-            .collection('users')
-            .doc(usernameDoc['uid'])
+      if (contactDoc.exists && contactDoc['uid'] != widget.currentUid) {
+        final uid = contactDoc['uid'];
+
+        // Fetch name from KYC
+        final kycDoc = await FirebaseFirestore.instance
+            .collection('kyc')
+            .doc(uid)
             .get();
-        if (userDoc.exists) result['phone'] = userDoc.get('phone') ?? '';
-      }
 
-      // 2️⃣ Search by phone number if username search failed
-      if (result == null) {
-        if (!query.startsWith('+')) query = '+91$query';
+        final name = kycDoc.exists
+            ? kycDoc['name'] ?? 'Unknown User'
+            : 'Unknown User';
 
-        final contactDoc = await firestore
-            .collection('contacts')
-            .doc(query)
-            .get();
-        if (contactDoc.exists && contactDoc['uid'] != widget.currentUid) {
-          final uid = contactDoc['uid'];
-
-          // Fetch username from usernames collection
-          final userQuery = await firestore
-              .collection('usernames')
-              .where('uid', isEqualTo: uid)
-              .limit(1)
-              .get();
-
-          String username = '';
-          if (userQuery.docs.isNotEmpty) username = userQuery.docs.first.id;
-
-          result = {'uid': uid, 'username': username, 'phone': contactDoc.id};
-        }
-      }
-
-      if (result != null) {
-        _friendResult = result;
+        _friendResult = {'uid': uid, 'name': name, 'phone': query};
       } else {
-        _errorMessage = 'No user found for "$query".';
+        _errorMessage = 'No user found';
       }
     } catch (e) {
-      _errorMessage = 'Error searching user: $e';
+      _errorMessage = 'Error: $e';
     }
 
     setState(() => _isLoading = false);
@@ -128,11 +87,11 @@ class _PayToFriendPageState extends State<PayToFriendPage> {
       context,
       MaterialPageRoute(
         builder: (_) => PaymentHistoryScreen(
-          currentUsername: _senderUsername,
+          senderUid: widget.currentUid,
           currentPhone: _senderPhone,
-          friendUsername: friend['username']!,
-          friendPhone: friend['phone'] ?? '',
           recipientUid: friend['uid']!,
+          recipientName: friend['name']!, // from KYC
+          friendPhone: friend['phone'] ?? '',
         ),
       ),
     );
@@ -175,7 +134,7 @@ class _PayToFriendPageState extends State<PayToFriendPage> {
                   child: TextField(
                     controller: _searchController,
                     decoration: const InputDecoration(
-                      hintText: 'Enter username or phone number',
+                      hintText: 'Enter  phone number',
                       border: InputBorder.none,
                       prefixIcon: Icon(
                         Icons.search,
@@ -221,8 +180,8 @@ class _PayToFriendPageState extends State<PayToFriendPage> {
                   child: Icon(Icons.person, color: Colors.white),
                 ),
                 title: Text(
-                  _friendResult!['username']!.isNotEmpty
-                      ? _friendResult!['username']!
+                  _friendResult!['name']!.isNotEmpty
+                      ? _friendResult!['name']!
                       : _friendResult!['phone']!,
                 ),
                 subtitle: _friendResult!['phone']!.isNotEmpty

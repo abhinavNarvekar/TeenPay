@@ -1,7 +1,6 @@
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../Dashboard/dashboard_temp.dart';
+import 'package:flutter/material.dart';
 import 'package:teenpay/login_or_register.dart';
 
 class SetNewPinScreen extends StatefulWidget {
@@ -18,25 +17,30 @@ class _SetNewPinScreenState extends State<SetNewPinScreen> {
   bool _isSecondPinActive = false;
   bool _isSubmitting = false;
 
-  String? _username; // will fetch from users collection
+  String? _name; // instead of _username
 
   @override
   void initState() {
     super.initState();
-    _fetchUsername();
+    _fetchName();
   }
 
-  Future<void> _fetchUsername() async {
+  String _generateTeenPayId(String uid) {
+    return "tp_${uid.substring(uid.length - 6)}@teenpay";
+  }
+
+  Future<void> _fetchName() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
 
     final doc = await FirebaseFirestore.instance
-        .collection('users')
+        .collection('kyc')
         .doc(uid)
         .get();
+
     if (doc.exists) {
       setState(() {
-        _username = doc['username']; // assumes 'username' field exists
+        _name = doc.data()?['name']; // ✅ safe access
       });
     }
   }
@@ -71,29 +75,41 @@ class _SetNewPinScreenState extends State<SetNewPinScreen> {
   }
 
   Future<void> _onSubmit() async {
-    if (_username == null) {
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Username not loaded yet. Please wait.'),
-          backgroundColor: Colors.orange,
+          content: Text('User not authenticated.'),
+          backgroundColor: Colors.red,
         ),
       );
       return;
     }
 
+    final uid = user.uid; // ✅ FIRST define uid
+    final teenpayId = _generateTeenPayId(uid); // ✅ THEN use it
+
     if (_firstPin.length == 6 && _secondPin.length == 6) {
       if (_firstPin == _secondPin) {
         setState(() => _isSubmitting = true);
+
         try {
           final walletRef = FirebaseFirestore.instance
               .collection('wallets')
-              .doc(_username);
+              .doc(uid);
 
           await walletRef.set({
-            'username': _username,
+            'uid': uid,
+            'teenpayId': teenpayId, // ✅ ADD THIS
             'tPin': _firstPin,
             'balance': 0.0,
+            'name': _name,
             'createdAt': FieldValue.serverTimestamp(),
+          });
+
+          await FirebaseFirestore.instance.collection('users').doc(uid).update({
+            'profileCompleted': true,
           });
 
           ScaffoldMessenger.of(context).showSnackBar(
@@ -103,13 +119,12 @@ class _SetNewPinScreenState extends State<SetNewPinScreen> {
             ),
           );
 
-          // Navigate to dashboard after a short delay
-          Future.delayed(const Duration(milliseconds: 500), () {
+          Future.delayed(const Duration(milliseconds: 500), () async {
+            await FirebaseAuth.instance.signOut();
+
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(
-                builder: (context) => const LoginOrRegisterScreen(),
-              ),
+              MaterialPageRoute(builder: (context) => LoginOrRegisterScreen()),
             );
           });
         } catch (e) {
@@ -129,6 +144,7 @@ class _SetNewPinScreenState extends State<SetNewPinScreen> {
             backgroundColor: Colors.red,
           ),
         );
+
         setState(() {
           _firstPin = '';
           _secondPin = '';
@@ -266,8 +282,8 @@ class _SetNewPinScreenState extends State<SetNewPinScreen> {
             children: [
               const SizedBox(height: 30),
               Text(
-                _username != null
-                    ? 'Welcome back $_username,\nPlease set a new T-Pin'
+                _name != null
+                    ? 'Welcome back $_name,\nPlease set a new T-Pin'
                     : 'Loading username...',
                 textAlign: TextAlign.center,
                 style: const TextStyle(

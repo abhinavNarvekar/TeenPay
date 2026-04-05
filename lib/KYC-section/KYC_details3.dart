@@ -1,14 +1,15 @@
 // lib/KYC-section/kyc_live_photo.dart
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:image_picker/image_picker.dart';
 import 'dart:typed_data';
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
+
+import '../register-section/set_tpin.dart'; // <-- Target page
 import 'kyc_provider.dart';
-import '../Post-kyc-registration/setusername_pass.dart'; // <-- Target page
 
 class KYCLivePhotoPage extends StatefulWidget {
   const KYCLivePhotoPage({super.key});
@@ -149,7 +150,7 @@ class _KYCLivePhotoPageState extends State<KYCLivePhotoPage> {
 
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const SetDetailsScreen()),
+        MaterialPageRoute(builder: (context) => const SetNewPinScreen()),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(

@@ -1,13 +1,13 @@
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 
 class UserQrCodePage extends StatefulWidget {
-  final String username; // app username to fetch TeenPay ID
+  final String uid;
   final String? avatarUrl;
 
-  const UserQrCodePage({Key? key, required this.username, this.avatarUrl})
+  const UserQrCodePage({Key? key, required this.uid, this.avatarUrl})
     : super(key: key);
 
   @override
@@ -27,27 +27,28 @@ class _UserQrCodePageState extends State<UserQrCodePage> {
   Future<void> _fetchTeenPayId() async {
     try {
       final doc = await FirebaseFirestore.instance
-          .collection('usernames')
-          .doc(widget.username)
+          .collection('wallets')
+          .doc(widget.uid)
           .get();
 
       if (!doc.exists) {
         setState(() {
-          teenPayId = 'unknown_id';
+          teenPayId = widget.uid; // fallback
           _loading = false;
         });
         return;
       }
 
       final data = doc.data();
+
       setState(() {
-        teenPayId = data?['teenpay_id'] ?? 'unknown_id';
+        teenPayId = data?['teenpayId'] ?? widget.uid;
         _loading = false;
       });
     } catch (e) {
       print('Error fetching TeenPay ID: $e');
       setState(() {
-        teenPayId = 'unknown_id';
+        teenPayId = widget.uid;
         _loading = false;
       });
     }
@@ -146,7 +147,7 @@ class _UserQrCodePageState extends State<UserQrCodePage> {
                                   ),
                                   child: QrImageView(
                                     data:
-                                        'teenpay://pay/$teenPayId', // Unique per user
+                                        'teenpay://pay/${widget.uid}', // Unique per user
                                     version: QrVersions.auto,
                                     size: 220.0,
                                     backgroundColor: Colors.white,

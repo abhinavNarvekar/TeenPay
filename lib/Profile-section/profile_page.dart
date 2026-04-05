@@ -1,18 +1,19 @@
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+
 import '../welcome_screen.dart'; // Adjust path if needed
 import 'qr_code_unique.dart'; // ✅ Add correct import path for your QR screen
 
 class ProfileScreen extends StatefulWidget {
-  final String? username;
-
-  const ProfileScreen({Key? key, this.username}) : super(key: key);
+  const ProfileScreen({Key? key}) : super(key: key);
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  late String uid;
   String displayName = 'User';
   String contact = 'Not available';
   bool _loading = true;
@@ -20,33 +21,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
+
+    uid = FirebaseAuth.instance.currentUser!.uid;
+
     _fetchUserData();
   }
 
   Future<void> _fetchUserData() async {
     try {
-      if (widget.username == null) return;
-
-      // Step 1: Get UID from usernames collection
-      final usernameDoc = await FirebaseFirestore.instance
-          .collection('usernames')
-          .doc(widget.username!)
-          .get();
-
-      if (!usernameDoc.exists) return;
-
-      final uid = usernameDoc.data()?['uid'] as String?;
-      if (uid == null) return;
-
-      // Step 2: Get user data from kyc collection using UID
       final kycDoc = await FirebaseFirestore.instance
           .collection('kyc')
           .doc(uid)
           .get();
 
-      if (!kycDoc.exists) return;
+      if (!kycDoc.exists) {
+        setState(() => _loading = false);
+        return;
+      }
 
       final kycData = kycDoc.data();
+
       setState(() {
         displayName = kycData?['name'] ?? kycData?['fullName'] ?? 'User';
         contact = kycData?['contact'] ?? 'Not available';
@@ -54,9 +48,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       });
     } catch (e) {
       print('Error fetching profile data: $e');
-      setState(() {
-        _loading = false;
-      });
+      setState(() => _loading = false);
     }
   }
 
@@ -100,8 +92,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 child: const Text('Cancel'),
                               ),
                               TextButton(
-                                onPressed: () {
+                                onPressed: () async {
                                   Navigator.pop(context); // close dialog
+                                  await FirebaseAuth.instance.signOut();
                                   Navigator.pushAndRemoveUntil(
                                     context,
                                     MaterialPageRoute(
@@ -184,10 +177,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'TeenPay ID: ${widget.username ?? 'user'}@teenpay',
-                      style: const TextStyle(color: Colors.black54),
-                    ),
-                    Text(
                       'Contact No: $contact',
                       style: const TextStyle(color: Colors.black54),
                     ),
@@ -242,15 +231,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
             subtitle: const Text('Use to receive money from TeenPay app'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
-              if (widget.username != null) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        UserQrCodePage(username: widget.username!),
-                  ),
-                );
-              }
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => UserQrCodePage(uid: uid),
+                ),
+              );
             },
           ),
           ListTile(

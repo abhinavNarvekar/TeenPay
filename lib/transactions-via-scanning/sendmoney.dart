@@ -1,11 +1,12 @@
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
+
 import 'authtpin.dart'; // import your EnterPinPage
 
 class SendMoneyScreen extends StatefulWidget {
-  final String senderUsername; // logged-in user
-  final String recipientUsername; // from scanned QR
-  final String teenPayId; // from scanned QR
+  final String senderUid;
+  final String recipientUid;
+  final String teenPayId;
 
   // Optional fields for prefilled request
   final double? prefillAmount;
@@ -14,8 +15,8 @@ class SendMoneyScreen extends StatefulWidget {
 
   const SendMoneyScreen({
     Key? key,
-    required this.senderUsername,
-    required this.recipientUsername,
+    required this.senderUid,
+    required this.recipientUid,
     required this.teenPayId,
     this.prefillAmount,
     this.prefillNote,
@@ -51,60 +52,34 @@ class _SendMoneyScreenState extends State<SendMoneyScreen> {
   // Fetch recipient display name from KYC
   Future<void> _fetchRecipientName() async {
     try {
-      final usernameDoc = await FirebaseFirestore.instance
-          .collection('usernames')
-          .doc(widget.recipientUsername)
-          .get();
-
-      if (!usernameDoc.exists) {
-        setState(() => recipientName = widget.recipientUsername);
-        return;
-      }
-
-      final uid = usernameDoc['uid'];
       final kycDoc = await FirebaseFirestore.instance
           .collection('kyc')
-          .doc(uid)
+          .doc(widget.recipientUid)
           .get();
 
       setState(() {
         recipientName = kycDoc.exists
-            ? kycDoc['name'] ?? widget.recipientUsername
-            : widget.recipientUsername;
+            ? kycDoc['name'] ?? 'Unknown User'
+            : 'Unknown User';
       });
     } catch (e) {
-      print('Error fetching recipient name: $e');
-      setState(() => recipientName = widget.recipientUsername);
+      setState(() => recipientName = 'Unknown User');
     }
   }
 
   // Fetch sender display name from KYC
   Future<void> _fetchSenderName() async {
     try {
-      final usernameDoc = await FirebaseFirestore.instance
-          .collection('usernames')
-          .doc(widget.senderUsername)
-          .get();
-
-      if (!usernameDoc.exists) {
-        setState(() => senderName = widget.senderUsername);
-        return;
-      }
-
-      final uid = usernameDoc['uid'];
       final kycDoc = await FirebaseFirestore.instance
           .collection('kyc')
-          .doc(uid)
+          .doc(widget.senderUid)
           .get();
 
       setState(() {
-        senderName = kycDoc.exists
-            ? kycDoc['name'] ?? widget.senderUsername
-            : widget.senderUsername;
+        senderName = kycDoc.exists ? kycDoc['name'] ?? 'You' : 'You';
       });
     } catch (e) {
-      print('Error fetching sender name: $e');
-      setState(() => senderName = widget.senderUsername);
+      setState(() => senderName = 'You');
     }
   }
 
@@ -135,14 +110,14 @@ class _SendMoneyScreenState extends State<SendMoneyScreen> {
     try {
       final txnRef = FirebaseFirestore.instance
           .collection('transactions')
-          .doc(widget.senderUsername)
+          .doc(widget.senderUid)
           .collection('userTxns')
           .doc(); // unique txn ID
 
       final txnDataSender = {
         'type': 'debit',
         'amount': parsedAmount,
-        'counterparty': widget.recipientUsername,
+        'counterpartyUid': widget.recipientUid,
         'counterpartyName': recipientName, // recipient display name
         'note': note,
         'status': 'pending',
@@ -153,7 +128,7 @@ class _SendMoneyScreenState extends State<SendMoneyScreen> {
       final txnDataReceiver = {
         'type': 'credit',
         'amount': parsedAmount,
-        'counterparty': widget.senderUsername,
+        'counterpartyUid': widget.senderUid,
         'counterpartyName': senderName, // ✅ sender display name
         'note': note,
         'status': 'pending',
@@ -166,7 +141,7 @@ class _SendMoneyScreenState extends State<SendMoneyScreen> {
       // 2. Write transaction for receiver
       final receiverRef = FirebaseFirestore.instance
           .collection('transactions')
-          .doc(widget.recipientUsername)
+          .doc(widget.recipientUid)
           .collection('userTxns')
           .doc(txnRef.id);
 
@@ -177,7 +152,7 @@ class _SendMoneyScreenState extends State<SendMoneyScreen> {
         context,
         MaterialPageRoute(
           builder: (_) => EnterPinPage(
-            username: widget.senderUsername,
+            uid: widget.senderUid,
             transactionId: txnRef.id,
             requestId: widget.requestId,
           ),
@@ -260,7 +235,7 @@ class _SendMoneyScreenState extends State<SendMoneyScreen> {
           ),
         ),
         subtitle: Text(
-          widget.recipientUsername,
+          widget.teenPayId,
           style: const TextStyle(color: Colors.black54, fontSize: 14.0),
         ),
       ),

@@ -1,13 +1,13 @@
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+
 import '../transactions-via-scanning/sendmoney.dart'; // Your SendMoneyScreen import
 
 class PendingRequestsPage extends StatefulWidget {
-  final String username;
+  final String uid;
 
-  const PendingRequestsPage({Key? key, required this.username})
-    : super(key: key);
+  const PendingRequestsPage({Key? key, required this.uid}) : super(key: key);
 
   @override
   State<PendingRequestsPage> createState() => _PendingRequestsPageState();
@@ -182,12 +182,11 @@ class _PendingRequestsPageState extends State<PendingRequestsPage> {
         ) {
           if (searchQuery.isEmpty) return true;
           Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-          String otherUsername = isReceivedSelected
-              ? (data['senderUsername'] ?? '').toLowerCase()
-              : (data['receiverUsername'] ?? '').toLowerCase();
+          String otherName = isReceivedSelected
+              ? (data['senderName'] ?? '').toLowerCase()
+              : (data['receiverName'] ?? '').toLowerCase();
           String note = (data['note'] ?? '').toLowerCase();
-          return otherUsername.contains(searchQuery) ||
-              note.contains(searchQuery);
+          return otherName.contains(searchQuery) || note.contains(searchQuery);
         }).toList();
 
         filteredDocs.sort((a, b) {
@@ -215,7 +214,7 @@ class _PendingRequestsPageState extends State<PendingRequestsPage> {
             return RequestCard(
               data: data,
               isReceived: isReceivedSelected,
-              currentUser: widget.username,
+              currentUser: widget.uid,
             );
           },
         );
@@ -227,13 +226,13 @@ class _PendingRequestsPageState extends State<PendingRequestsPage> {
     if (isReceivedSelected) {
       return FirebaseFirestore.instance
           .collection('requests')
-          .where('receiverUsername', isEqualTo: widget.username)
+          .where('receiverUid', isEqualTo: widget.uid)
           .where('status', isEqualTo: 'pending')
           .snapshots();
     } else {
       return FirebaseFirestore.instance
           .collection('requests')
-          .where('senderUsername', isEqualTo: widget.username)
+          .where('senderUid', isEqualTo: widget.uid)
           .where('status', isEqualTo: 'pending')
           .snapshots();
     }
@@ -254,9 +253,11 @@ class RequestCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    String otherUsername = isReceived
-        ? data['senderUsername'] ?? 'Unknown'
-        : data['receiverUsername'] ?? 'Unknown';
+    String otherName = isReceived
+        ? data['senderName'] ?? 'Unknown'
+        : data['receiverName'] ?? 'Unknown';
+
+    String otherUid = isReceived ? data['senderUid'] : data['receiverUid'];
     double amount = (data['amount'] ?? 0).toDouble();
     String note = data['note'] ?? '';
     Timestamp? timestamp = data['createdAt'];
@@ -269,15 +270,14 @@ class RequestCard extends StatelessWidget {
     String formattedDate = _formatDate(timestamp);
 
     return GestureDetector(
-      onTap: isCompleted
-          ? null
-          : () {
+      onTap: (!isCompleted && isReceived)
+          ? () {
               Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (_) => SendMoneyScreen(
-                    senderUsername: currentUser,
-                    recipientUsername: otherUsername,
+                    senderUid: currentUser,
+                    recipientUid: otherUid,
                     teenPayId: '',
                     prefillAmount: amount,
                     prefillNote: note,
@@ -285,7 +285,8 @@ class RequestCard extends StatelessWidget {
                   ),
                 ),
               );
-            },
+            }
+          : null,
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(
@@ -308,7 +309,7 @@ class RequestCard extends StatelessWidget {
           leading: CircleAvatar(
             backgroundColor: Colors.blue[100],
             child: Text(
-              otherUsername.isNotEmpty ? otherUsername[0].toUpperCase() : '?',
+              otherName.isNotEmpty ? otherName[0].toUpperCase() : '?',
               style: TextStyle(
                 color: Colors.blue[700],
                 fontWeight: FontWeight.bold,
@@ -316,7 +317,7 @@ class RequestCard extends StatelessWidget {
             ),
           ),
           title: Text(
-            otherUsername,
+            otherName,
             style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
           ),
           subtitle: Text(

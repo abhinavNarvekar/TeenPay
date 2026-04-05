@@ -1,11 +1,11 @@
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
+
 import 'dashboard_temp.dart'; // ✅ Make sure this import points to your dashboard file
 
 class TransactionHistoryPage extends StatefulWidget {
-  final String username;
-  const TransactionHistoryPage({Key? key, required this.username})
-    : super(key: key);
+  final String uid;
+  const TransactionHistoryPage({Key? key, required this.uid}) : super(key: key);
 
   @override
   State<TransactionHistoryPage> createState() => _TransactionHistoryPageState();
@@ -18,7 +18,7 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
   Stream<List<Transaction>> getUserTransactions() {
     return FirebaseFirestore.instance
         .collection('transactions')
-        .doc(widget.username)
+        .doc(widget.uid)
         .collection('userTxns')
         .snapshots()
         .map((snapshot) {
@@ -33,7 +33,7 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
                 final amount = (data['amount'] as num?)?.toDouble() ?? 0.0;
                 final note = (data['note'] ?? '').toString();
                 final description = (data['description'] ?? '').toString();
-                final counterparty = (data['counterparty'] ?? '').toString();
+                final counterparty = (data['counterpartyUid'] ?? '').toString();
                 final counterpartyName = (data['counterpartyName'] ?? '')
                     .toString();
 
@@ -42,6 +42,7 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
                     : TransactionType.received;
 
                 String displayName;
+
                 if (description.toLowerCase().contains('wallet') ||
                     (data['mode'] ?? '').toString().toLowerCase().contains(
                       'add',
@@ -49,8 +50,6 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
                   displayName = 'Wallet Top-up';
                 } else if (counterpartyName.isNotEmpty) {
                   displayName = counterpartyName;
-                } else if (counterparty.isNotEmpty) {
-                  displayName = counterparty;
                 } else {
                   displayName = txnType == TransactionType.received
                       ? 'Money received'
@@ -96,9 +95,7 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
         // ✅ Always go back to dashboard
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(
-            builder: (context) => TeenPayDashboard(username: widget.username),
-          ),
+          MaterialPageRoute(builder: (context) => TeenPayDashboard()),
         );
         return false; // Prevent default back behavior
       },
@@ -112,10 +109,7 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
               // ✅ Go to dashboard even if opened from navbar
               Navigator.pushReplacement(
                 context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      TeenPayDashboard(username: widget.username),
-                ),
+                MaterialPageRoute(builder: (context) => TeenPayDashboard()),
               );
             },
           ),

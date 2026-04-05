@@ -1,13 +1,13 @@
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 import 'package:qr_code_scanner_plus/qr_code_scanner_plus.dart';
-import '../transactions-via-scanning/sendmoney.dart'; // Import your SendMoneyScreen here
+
+import '../transactions-via-scanning/sendmoney.dart';
 
 class QrScannerPage extends StatefulWidget {
-  final String senderUsername;
+  final String senderUid; // ✅ changed from username → UID
 
-  const QrScannerPage({Key? key, required this.senderUsername})
-    : super(key: key);
+  const QrScannerPage({Key? key, required this.senderUid}) : super(key: key);
 
   @override
   State<QrScannerPage> createState() => _QrScannerPageState();
@@ -16,8 +16,9 @@ class QrScannerPage extends StatefulWidget {
 class _QrScannerPageState extends State<QrScannerPage> {
   final GlobalKey qrKey = GlobalKey(debugLabel: 'QR');
   QRViewController? controller;
+
   String? scannedData;
-  bool _navigating = false; // Prevents multiple navigations
+  bool _navigating = false;
 
   @override
   void reassemble() {
@@ -36,62 +37,75 @@ class _QrScannerPageState extends State<QrScannerPage> {
 
   void _onQRViewCreated(QRViewController controller) {
     this.controller = controller;
+
     controller.scannedDataStream.listen((scanData) async {
-      if (_navigating) return; // Avoid duplicate scans
+      if (_navigating) return;
+
       final code = scanData.code;
       if (code == null) return;
 
       setState(() => scannedData = code);
       controller.pauseCamera();
 
-      // Parse username from scanned QR
-      String? scannedUsername;
+      // ✅ STEP 1: Extract UID from QR
+      String? recipientUid;
+
       try {
         final uri = Uri.parse(code);
         if (uri.scheme == 'teenpay' && uri.host == 'pay') {
-          scannedUsername = uri.pathSegments.isNotEmpty
-              ? uri.pathSegments.first.replaceAll('@teenpay', '')
+          recipientUid = uri.pathSegments.isNotEmpty
+              ? uri.pathSegments.first
               : null;
         }
       } catch (e) {
-        scannedUsername = null;
+        recipientUid = null;
       }
 
-      // ✅ Check for valid username
-      if (scannedUsername == null) {
+      // ✅ STEP 2: Validate QR
+      if (recipientUid == null) {
         _showResultDialog('Invalid QR Code');
         return;
       }
 
-      // ✅ Prevent self-sending
-      if (scannedUsername == widget.senderUsername) {
+      // ✅ STEP 3: Prevent self transfer
+      if (recipientUid == widget.senderUid) {
         _showResultDialog("You can't send money to yourself.");
         return;
       }
 
-      // Fetch teenpay_id from Firestore
-      String teenPayId = 'unknown_id';
+      // ✅ STEP 4: Fetch user data from Firestore
+      String recipientUsername = '';
+      String teenPayId = '';
+
       try {
-        final doc = await FirebaseFirestore.instance
-            .collection('usernames')
-            .doc(scannedUsername)
+        final walletDoc = await FirebaseFirestore.instance
+            .collection('wallets')
+            .doc(recipientUid)
             .get();
-        if (doc.exists) {
-          teenPayId = doc['teenpay_id'] ?? 'unknown_id';
+
+        if (!walletDoc.exists) {
+          _showResultDialog("Wallet not found");
+          return;
         }
+
+        final walletData = walletDoc.data() as Map<String, dynamic>;
+
+        teenPayId = walletData['teenpay_id'] ?? 'unknown_id';
       } catch (e) {
-        teenPayId = 'unknown_id';
+        _showResultDialog("Error fetching user");
+        return;
       }
 
-      // Navigate to SendMoneyScreen
+      // ✅ STEP 5: Navigate to SendMoneyScreen
       if (mounted) {
         setState(() => _navigating = true);
+
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
             builder: (_) => SendMoneyScreen(
-              senderUsername: widget.senderUsername,
-              recipientUsername: scannedUsername!,
+              senderUid: widget.senderUid,
+              recipientUid: recipientUid!,
               teenPayId: teenPayId,
             ),
           ),
@@ -161,5 +175,3 @@ class _QrScannerPageState extends State<QrScannerPage> {
     );
   }
 }
-// adb pair 192.168.0.108:42365  
-// adb connect 192.168.0.108:38619   

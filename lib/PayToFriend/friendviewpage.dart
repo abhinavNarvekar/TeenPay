@@ -1,23 +1,25 @@
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:teenpay/transactions-via-scanning/sendmoney.dart';
+
 import 'reqmoneywithamt.dart';
 
 class PaymentHistoryScreen extends StatefulWidget {
-  final String currentUsername;
-  final String currentPhone;
-  final String friendUsername;
+  final String senderUid;
+  final String currentPhone; // keep since you want it
+
+  final String recipientUid;
+  final String recipientName;
   final String friendPhone;
-  final String recipientUid; // UID of friend for sending money
 
   const PaymentHistoryScreen({
     Key? key,
-    required this.currentUsername,
+    required this.senderUid,
     required this.currentPhone,
-    required this.friendUsername,
-    required this.friendPhone,
     required this.recipientUid,
+    required this.recipientName,
+    required this.friendPhone,
   }) : super(key: key);
 
   @override
@@ -25,13 +27,12 @@ class PaymentHistoryScreen extends StatefulWidget {
 }
 
 class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
-  String? friendName; // fetched from KYC table
+  // String? friendName; // fetched from KYC table
   final ScrollController _scrollController = ScrollController(); // ✅ added
 
   @override
   void initState() {
     super.initState();
-    _fetchFriendName();
   }
 
   @override
@@ -40,35 +41,10 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
     super.dispose();
   }
 
-  Future<void> _fetchFriendName() async {
-    try {
-      final userDoc = await FirebaseFirestore.instance
-          .collection('usernames')
-          .doc(widget.friendUsername)
-          .get();
-
-      if (userDoc.exists) {
-        final friendUid = userDoc['uid'];
-        final kycDoc = await FirebaseFirestore.instance
-            .collection('kyc')
-            .doc(friendUid)
-            .get();
-
-        if (kycDoc.exists) {
-          setState(() {
-            friendName = kycDoc['name'];
-          });
-        }
-      }
-    } catch (e) {
-      print('Error fetching friend name: $e');
-    }
-  }
-
   Stream<QuerySnapshot> _getTransactionsStream() {
     return FirebaseFirestore.instance
         .collection('transactions')
-        .doc(widget.currentUsername)
+        .doc(widget.senderUid)
         .collection('userTxns')
         .orderBy('createdAt', descending: true)
         .snapshots();
@@ -81,7 +57,7 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final displayName = friendName ?? widget.friendUsername;
+    final displayName = widget.recipientName;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF0F7FF),
@@ -157,7 +133,7 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
           final transactions = allTxns
               .where(
                 (txn) =>
-                    (txn['counterparty'] ?? '') == widget.friendUsername &&
+                    (txn['counterpartyUid'] ?? '') == widget.recipientUid &&
                     (txn['status'] ?? '') == 'completed',
               )
               .toList()
@@ -207,7 +183,7 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
               final amount = txn['amount'].toString();
               final type = txn['type'] ?? 'unknown';
               final counterpartyName =
-                  txn['counterpartyName'] ?? widget.friendUsername;
+                  txn['counterpartyName'] ?? widget.recipientName;
               final date = txn['createdAt'] != null
                   ? _formatDate(txn['createdAt'])
                   : 'Unknown date';
@@ -289,8 +265,8 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
                       context,
                       MaterialPageRoute(
                         builder: (_) => SendMoneyScreen(
-                          senderUsername: widget.currentUsername,
-                          recipientUsername: widget.friendUsername,
+                          senderUid: widget.senderUid,
+                          recipientUid: widget.recipientUid,
                           teenPayId: widget.recipientUid,
                         ),
                       ),
@@ -349,8 +325,8 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
                       context,
                       MaterialPageRoute(
                         builder: (_) => RequestMoneyScreen(
-                          senderUsername: widget.currentUsername,
-                          receiverUsername: widget.friendUsername,
+                          senderUid: widget.senderUid,
+                          receiverUid: widget.recipientUid,
                         ),
                       ),
                     );

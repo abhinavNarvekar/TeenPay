@@ -1,15 +1,16 @@
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
+
 import 'receipt.dart'; // Your ReceiptScreen import
 
 class EnterPinPage extends StatefulWidget {
-  final String username; // Sender's username
+  final String uid;
   final String transactionId; // Transaction ID
   final String? requestId; // Optional request ID to delete after payment
 
   const EnterPinPage({
     Key? key,
-    required this.username,
+    required this.uid,
     required this.transactionId,
     this.requestId,
   }) : super(key: key);
@@ -21,7 +22,12 @@ class EnterPinPage extends StatefulWidget {
 class _EnterPinPageState extends State<EnterPinPage> {
   String _enteredPin = '';
   bool _isVerifying = false;
-
+  String senderName = 'Loading...';
+@override
+  void initState() {
+    super.initState();
+    _fetchSenderName();
+  }
   void _onKeyPressed(String value) {
     setState(() {
       if (value == 'backspace') {
@@ -36,6 +42,21 @@ class _EnterPinPageState extends State<EnterPinPage> {
     if (_enteredPin.length == 6) _verifyPin();
   }
 
+  Future<void> _fetchSenderName() async {
+    try {
+      final kycDoc = await FirebaseFirestore.instance
+          .collection('kyc')
+          .doc(widget.uid)
+          .get();
+
+      setState(() {
+        senderName = kycDoc.exists ? kycDoc['name'] ?? 'User' : 'User';
+      });
+    } catch (e) {
+      setState(() => senderName = 'User');
+    }
+  }
+
   Future<void> _verifyPin() async {
     setState(() => _isVerifying = true);
 
@@ -43,7 +64,7 @@ class _EnterPinPageState extends State<EnterPinPage> {
       // 1. Fetch sender wallet
       final walletRef = FirebaseFirestore.instance
           .collection('wallets')
-          .doc(widget.username);
+          .doc(widget.uid);
       final walletDoc = await walletRef.get();
 
       if (!walletDoc.exists) throw 'Wallet not found';
@@ -54,7 +75,7 @@ class _EnterPinPageState extends State<EnterPinPage> {
       // 2. Fetch transaction
       final senderTxnRef = FirebaseFirestore.instance
           .collection('transactions')
-          .doc(widget.username)
+          .doc(widget.uid)
           .collection('userTxns')
           .doc(widget.transactionId);
 
@@ -62,15 +83,15 @@ class _EnterPinPageState extends State<EnterPinPage> {
       if (!senderTxnDoc.exists) throw 'Transaction not found';
 
       final txnData = senderTxnDoc.data()!;
-      final receiverUsername = txnData['counterparty'];
+      final receiverUid = txnData['counterpartyUid'];
       final amount = (txnData['amount'] as num).toDouble();
 
       final receiverWalletRef = FirebaseFirestore.instance
           .collection('wallets')
-          .doc(receiverUsername);
+          .doc(receiverUid);
       final receiverTxnRef = FirebaseFirestore.instance
           .collection('transactions')
-          .doc(receiverUsername)
+          .doc(receiverUid)
           .collection('userTxns')
           .doc(widget.transactionId);
 
@@ -101,7 +122,7 @@ class _EnterPinPageState extends State<EnterPinPage> {
       // 4. Reward system update
       final rewardsRef = FirebaseFirestore.instance
           .collection('rewards')
-          .doc(widget.username);
+          .doc(widget.uid);
       final rewardsHistoryRef = rewardsRef.collection('history');
 
       await FirebaseFirestore.instance.runTransaction((txn) async {
@@ -145,9 +166,9 @@ class _EnterPinPageState extends State<EnterPinPage> {
         context,
         MaterialPageRoute(
           builder: (_) => ReceiptScreen(
-            senderUsername: widget.username,
-            recipientUsername: receiverUsername,
-            recipientName: txnData['counterpartyName'] ?? receiverUsername,
+            senderUid: widget.uid,
+            recipientUid: receiverUid,
+            recipientName: txnData['counterpartyName'] ?? 'Unknown User',
             amount: amount,
             note: txnData['note'] ?? '',
             transactionId: widget.transactionId,
@@ -267,7 +288,7 @@ class _EnterPinPageState extends State<EnterPinPage> {
             children: [
               const SizedBox(height: 40),
               Text(
-                'Welcome ${widget.username},\nPlease enter your T-Pin',
+                'Welcome $senderName,\nPlease enter your T-Pin',
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontSize: 18,

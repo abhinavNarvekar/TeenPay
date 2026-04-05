@@ -1,7 +1,9 @@
 import 'dart:convert';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../Dashboard/dashboard_temp.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -79,7 +81,7 @@ class _LoginScreenState extends State<LoginScreen> {
       // Navigate to dashboard
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => TeenPayApp(username: username)),
+        MaterialPageRoute(builder: (_) => TeenPayApp()),
       );
     } catch (e) {
       setState(() {

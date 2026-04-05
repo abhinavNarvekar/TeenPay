@@ -15,9 +15,9 @@ class OTPVerificationScreen extends StatefulWidget {
   final String verificationId;
   final String phoneNumber;
   final int? resendToken;
-  final ConfirmationResult? confirmationResult; // For web
-  final OtpMode mode; // Login or Registration mode
-  final String? username; // <-- Added username
+  final ConfirmationResult? confirmationResult;
+  final OtpMode mode;
+  final String? username;
 
   const OTPVerificationScreen({
     Key? key,
@@ -38,7 +38,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
     6,
     (_) => TextEditingController(),
   );
-  final List<FocusNode> _focusNodes = List.generate(6, (Index) => FocusNode());
+  final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   late Timer _timer;
@@ -111,15 +111,15 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
     try {
       if (kIsWeb && widget.confirmationResult != null) {
         await widget.confirmationResult!.confirm(otp);
-        _navigatePostOtp();
       } else {
         final credential = PhoneAuthProvider.credential(
           verificationId: _currentVerificationId,
           smsCode: otp,
         );
         await _auth.signInWithCredential(credential);
-        _navigatePostOtp();
       }
+
+      _navigatePostOtp();
     } on FirebaseAuthException catch (e) {
       setState(() => _isVerifying = false);
       String errorMessage;
@@ -154,54 +154,97 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
     final user = _auth.currentUser;
     if (user == null) return;
 
+    final uid = user.uid;
+
     setState(() => _isVerifying = false);
 
     if (widget.mode == OtpMode.login) {
-      final username = widget.username;
-      if (username != null) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => TeenPayApp(username: username)),
-        );
-      } else {
-        _showErrorDialog(
-          'Failed to retrieve username. Please try logging in again.',
-        );
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
+
+      if (!userDoc.exists) {
+        _showErrorDialog('User not found. Please register.');
+        return;
       }
-    } else if (widget.mode == OtpMode.registration) {
-      try {
-        final userDoc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .get();
 
-        if (!userDoc.exists) {
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(user.uid)
-              .set({
-                'uid': user.uid,
-                'phone': user.phoneNumber,
-                'kycStatus': 'pending',
-                'createdAt': FieldValue.serverTimestamp(),
-              });
+      // 🔍 Fetch wallet
+      final walletDoc = await FirebaseFirestore.instance
+          .collection('wallets')
+          .doc(uid)
+          .get();
 
-          // ✅ Add entry in contacts collection
-          await FirebaseFirestore.instance
-              .collection('contacts')
-              .doc(user.phoneNumber)
-              .set({
-                'uid': user.uid,
-                'createdAt': FieldValue.serverTimestamp(),
-              });
-        }
+      final hasTPin = walletDoc.exists && walletDoc.data()?['tPin'] != null;
 
+      if (!hasTPin) {
+        // NOT REGISTERED → go to KYC
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const KycPage()),
         );
+        return;
+      }
+
+      // ✅ Fully registered
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => TeenPayApp()),
+      );
+    } else {
+      try {
+        final docRef = FirebaseFirestore.instance.collection('users').doc(uid);
+        final userDoc = await docRef.get();
+
+        if (!userDoc.exists) {
+          // 🆕 First-time registration
+          await docRef.set({
+            'uid': uid,
+            'phone': user.phoneNumber,
+            'tPin': null,
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+
+          await FirebaseFirestore.instance
+              .collection('contacts')
+              .doc(user.phoneNumber)
+              .set({'uid': uid, 'createdAt': FieldValue.serverTimestamp()});
+
+          // New user → go to KYC
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const KycPage()),
+          );
+          return;
+        }
+
+        // 🔁 Existing user (came back / retried)
+        // 🔁 Existing user (came back / retried)
+
+        // 🔍 Fetch wallet
+        final walletDoc = await FirebaseFirestore.instance
+            .collection('wallets')
+            .doc(uid)
+            .get();
+
+        final hasTPin = walletDoc.exists && walletDoc.data()?['tPin'] != null;
+
+        if (hasTPin) {
+          // ✅ Already fully registered
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => TeenPayApp()),
+          );
+        } else {
+          // ⚠️ Not completed → go to KYC
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const KycPage()),
+          );
+        }
       } catch (e) {
-        _showErrorDialog('Failed to fetch user data: $e');
+        _showErrorDialog('Failed: $e');
       }
     }
   }

@@ -1,12 +1,14 @@
-import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:scratcher/scratcher.dart';
 import 'dart:math';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
+import 'package:scratcher/scratcher.dart';
+
 import 'dashboard_temp.dart'; // ✅ Make sure this points to your dashboard file
 
 class RewardsPage extends StatefulWidget {
-  final String senderUsername;
-  const RewardsPage({Key? key, required this.senderUsername}) : super(key: key);
+  final String senderUid;
+  const RewardsPage({Key? key, required this.senderUid}) : super(key: key);
 
   @override
   State<RewardsPage> createState() => _RewardsPageState();
@@ -28,14 +30,14 @@ class _RewardsPageState extends State<RewardsPage> {
     try {
       final userRewardDoc = await _firestore
           .collection('rewards')
-          .doc(widget.senderUsername)
+          .doc(widget.senderUid)
           .get();
 
       double points = (userRewardDoc.data()?['totalPoints'] ?? 0).toDouble();
 
       final cardsSnapshot = await _firestore
           .collection('rewards')
-          .doc(widget.senderUsername)
+          .doc(widget.senderUid)
           .collection('scratchCards')
           .orderBy('createdAt', descending: true)
           .get();
@@ -52,7 +54,7 @@ class _RewardsPageState extends State<RewardsPage> {
         for (int i = existingCards; i < availableCards; i++) {
           await _firestore
               .collection('rewards')
-              .doc(widget.senderUsername)
+              .doc(widget.senderUid)
               .collection('scratchCards')
               .add({
                 'claimed': false,
@@ -63,7 +65,7 @@ class _RewardsPageState extends State<RewardsPage> {
 
         final updatedSnapshot = await _firestore
             .collection('rewards')
-            .doc(widget.senderUsername)
+            .doc(widget.senderUid)
             .collection('scratchCards')
             .orderBy('createdAt', descending: true)
             .get();
@@ -89,7 +91,7 @@ class _RewardsPageState extends State<RewardsPage> {
     try {
       await _firestore
           .collection('rewards')
-          .doc(widget.senderUsername)
+          .doc(widget.senderUid)
           .collection('scratchCards')
           .doc(cardId)
           .update({
@@ -100,21 +102,21 @@ class _RewardsPageState extends State<RewardsPage> {
 
       final walletDoc = await _firestore
           .collection('wallets')
-          .doc(widget.senderUsername)
+          .doc(widget.senderUid)
           .get();
       double currentBalance = (walletDoc.data()?['balance'] ?? 0).toDouble();
 
-      await _firestore.collection('wallets').doc(widget.senderUsername).update({
+      await _firestore.collection('wallets').doc(widget.senderUid).update({
         'balance': currentBalance + cashbackAmount,
       });
 
       await _firestore
           .collection('transactions')
-          .doc(widget.senderUsername)
+          .doc(widget.senderUid)
           .collection('userTxns')
           .add({
             'amount': cashbackAmount,
-            'counterparty': 'system',
+            'counterpartyUid': 'system',
             'counterpartyName': 'Scratch Card Reward',
             'createdAt': FieldValue.serverTimestamp(),
             'note': 'Scratch card cashback reward',
@@ -125,7 +127,7 @@ class _RewardsPageState extends State<RewardsPage> {
 
       await _firestore
           .collection('rewards')
-          .doc(widget.senderUsername)
+          .doc(widget.senderUid)
           .collection('history')
           .add({
             'amount': cashbackAmount,
@@ -166,10 +168,7 @@ class _RewardsPageState extends State<RewardsPage> {
       onWillPop: () async {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(
-            builder: (context) =>
-                TeenPayDashboard(username: widget.senderUsername),
-          ),
+          MaterialPageRoute(builder: (context) => TeenPayDashboard()),
         );
         return false;
       },
@@ -232,8 +231,7 @@ class _RewardsPageState extends State<RewardsPage> {
                     Navigator.pushReplacement(
                       context,
                       MaterialPageRoute(
-                        builder: (context) =>
-                            TeenPayDashboard(username: widget.senderUsername),
+                        builder: (context) => TeenPayDashboard(),
                       ),
                     );
                   },

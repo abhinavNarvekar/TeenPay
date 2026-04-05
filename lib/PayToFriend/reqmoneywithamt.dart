@@ -1,17 +1,16 @@
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
+
 import '../Dashboard/dashboard_temp.dart'; // import your TeenPayDashboard page
 
 class RequestMoneyScreen extends StatefulWidget {
-  final String senderUsername;
-  final String receiverUsername;
-
+  final String senderUid;
+  final String receiverUid;
   const RequestMoneyScreen({
     Key? key,
-    required this.senderUsername,
-    required this.receiverUsername,
+    required this.senderUid,
+    required this.receiverUid,
   }) : super(key: key);
-
   @override
   State<RequestMoneyScreen> createState() => _RequestMoneyScreenState();
 }
@@ -21,39 +20,42 @@ class _RequestMoneyScreenState extends State<RequestMoneyScreen> {
   final TextEditingController _noteController = TextEditingController();
   String receiverName = 'Loading...';
   bool _isSendingRequest = false;
+  String senderName = 'Loading...';
 
   @override
   void initState() {
     super.initState();
     _fetchReceiverName();
+    _fetchSenderName();
+  }
+
+  Future<void> _fetchSenderName() async {
+    try {
+      final kycDoc = await FirebaseFirestore.instance
+          .collection('kyc')
+          .doc(widget.senderUid)
+          .get();
+
+      setState(() {
+        senderName = kycDoc.exists ? kycDoc['name'] ?? 'User' : 'User';
+      });
+    } catch (e) {
+      setState(() => senderName = 'User');
+    }
   }
 
   Future<void> _fetchReceiverName() async {
     try {
-      final usernameDoc = await FirebaseFirestore.instance
-          .collection('usernames')
-          .doc(widget.receiverUsername)
-          .get();
-
-      if (!usernameDoc.exists) {
-        setState(() => receiverName = widget.receiverUsername);
-        return;
-      }
-
-      final uid = usernameDoc['uid'];
       final kycDoc = await FirebaseFirestore.instance
           .collection('kyc')
-          .doc(uid)
+          .doc(widget.receiverUid)
           .get();
 
       setState(() {
-        receiverName = kycDoc.exists
-            ? kycDoc['name'] ?? widget.receiverUsername
-            : widget.receiverUsername;
+        receiverName = kycDoc.exists ? kycDoc['name'] ?? 'User' : 'User';
       });
     } catch (e) {
-      print('Error fetching receiver name: $e');
-      setState(() => receiverName = widget.receiverUsername);
+      setState(() => receiverName = 'User');
     }
   }
 
@@ -88,8 +90,9 @@ class _RequestMoneyScreenState extends State<RequestMoneyScreen> {
 
       await requestRef.set({
         'requestId': requestRef.id, // optional, store ID inside document
-        'senderUsername': widget.senderUsername,
-        'receiverUsername': widget.receiverUsername,
+        'senderUid': widget.senderUid,
+        'receiverUid': widget.receiverUid,
+        'senderName': senderName,
         'receiverName': receiverName,
         'amount': parsedAmount,
         'note': _noteController.text.trim(),
@@ -109,10 +112,7 @@ class _RequestMoneyScreenState extends State<RequestMoneyScreen> {
                 Navigator.pop(context); // close dialog
                 Navigator.pushReplacement(
                   context,
-                  MaterialPageRoute(
-                    builder: (_) =>
-                        TeenPayDashboard(username: widget.senderUsername),
-                  ),
+                  MaterialPageRoute(builder: (_) => TeenPayDashboard()),
                 );
               },
               child: const Text('OK'),
@@ -196,10 +196,7 @@ class _RequestMoneyScreenState extends State<RequestMoneyScreen> {
             color: Colors.black87,
           ),
         ),
-        subtitle: Text(
-          widget.receiverUsername,
-          style: const TextStyle(color: Colors.black54, fontSize: 14.0),
-        ),
+        subtitle: Text(widget.receiverUid.substring(0, 10)),
       ),
     );
   }

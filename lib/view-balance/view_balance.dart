@@ -1,16 +1,12 @@
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:teenpay/Dashboard/rewards_earned.dart'; // Import your rewards page
+import 'package:flutter/material.dart';
 
 class WalletBalancePage extends StatefulWidget {
-  final String username;
+  final String uid;
   final double balance;
 
-  const WalletBalancePage({
-    Key? key,
-    required this.username,
-    required this.balance,
-  }) : super(key: key);
+  const WalletBalancePage({Key? key, required this.uid, required this.balance})
+    : super(key: key);
 
   @override
   State<WalletBalancePage> createState() => _WalletBalancePageState();
@@ -28,25 +24,18 @@ class _WalletBalancePageState extends State<WalletBalancePage> {
 
   Future<void> _fetchUserName() async {
     try {
-      final usernameDoc = await FirebaseFirestore.instance
-          .collection('usernames')
-          .doc(widget.username)
+      final kycDoc = await FirebaseFirestore.instance
+          .collection('kyc')
+          .doc(widget.uid)
           .get();
 
-      if (usernameDoc.exists && usernameDoc.data() != null) {
-        final uid = usernameDoc.data()?['uid'] as String?;
+      if (kycDoc.exists && kycDoc.data() != null) {
+        final data = kycDoc.data()!;
+        final name = data['name'] ?? data['fullName'] ?? 'User';
 
-        if (uid != null) {
-          final kycDoc = await FirebaseFirestore.instance
-              .collection('kyc')
-              .doc(uid)
-              .get();
-
-          if (kycDoc.exists && kycDoc.data() != null) {
-            final name = kycDoc.data()?['name'] ?? 'User';
-            setState(() => displayName = name);
-          }
-        }
+        setState(() {
+          displayName = name;
+        });
       }
     } catch (e) {
       print('Error fetching user name: $e');
@@ -203,14 +192,6 @@ class _WalletBalancePageState extends State<WalletBalancePage> {
 
                         // Unopened Reward Card
                         GestureDetector(
-                          // onTap: () {
-                          //   Navigator.push(
-                          //     context,
-                          //     // MaterialPageRoute(
-                          //     //   // builder: (_) => const RewardClaimPage(),
-                          //     // ),
-                          //   );
-                          // },
                           child: Container(
                             width: double.infinity,
                             padding: const EdgeInsets.all(16),
@@ -339,7 +320,7 @@ class _WalletBalancePageState extends State<WalletBalancePage> {
                         margin: const EdgeInsets.symmetric(horizontal: 12),
                         width: 1,
                         height: 24,
-                        color: Colors.grey.shade400,
+                        color: Colors.grey,
                       ),
                       Column(
                         mainAxisSize: MainAxisSize.min,
@@ -349,7 +330,6 @@ class _WalletBalancePageState extends State<WalletBalancePage> {
                             style: TextStyle(
                               fontSize: 10,
                               color: Colors.grey.shade600,
-                              letterSpacing: 0.5,
                             ),
                           ),
                           const SizedBox(height: 2),
@@ -362,8 +342,6 @@ class _WalletBalancePageState extends State<WalletBalancePage> {
                                   Colors.blue.shade700,
                                   Colors.blue.shade500,
                                 ],
-                                begin: Alignment.bottomLeft,
-                                end: Alignment.topRight,
                               ),
                               borderRadius: BorderRadius.circular(6),
                             ),

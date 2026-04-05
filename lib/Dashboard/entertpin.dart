@@ -1,31 +1,36 @@
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+
 import '../view-balance/view_balance.dart';
 
 class EnterPinPage extends StatefulWidget {
-  final String username;
-  final bool
-  navigateToWallet; // true → WalletBalancePage, false → return balance to dashboard
+  final bool navigateToWallet;
 
-  const EnterPinPage({
-    Key? key,
-    required this.username,
-    this.navigateToWallet = false,
-  }) : super(key: key);
+  const EnterPinPage({Key? key, this.navigateToWallet = false})
+    : super(key: key);
 
   @override
   State<EnterPinPage> createState() => _EnterPinPageState();
 }
 
 class _EnterPinPageState extends State<EnterPinPage> {
+  late String uid;
   String _enteredPin = '';
   bool _isVerifying = false;
+
+  @override
+  void initState() {
+    super.initState();
+    uid = FirebaseAuth.instance.currentUser!.uid;
+  }
 
   void _onKeyPressed(String value) {
     setState(() {
       if (value == 'backspace') {
-        if (_enteredPin.isNotEmpty)
+        if (_enteredPin.isNotEmpty) {
           _enteredPin = _enteredPin.substring(0, _enteredPin.length - 1);
+        }
       } else if (_enteredPin.length < 6) {
         _enteredPin += value;
       }
@@ -36,10 +41,11 @@ class _EnterPinPageState extends State<EnterPinPage> {
 
   Future<void> _verifyPin() async {
     setState(() => _isVerifying = true);
+
     try {
       final walletDoc = await FirebaseFirestore.instance
           .collection('wallets')
-          .doc(widget.username)
+          .doc(uid)
           .get();
 
       if (!walletDoc.exists) {
@@ -50,8 +56,9 @@ class _EnterPinPageState extends State<EnterPinPage> {
           ),
         );
       } else {
-        final storedPin = walletDoc['tPin'];
-        final balance = (walletDoc.data()?['balance'] ?? 0).toDouble();
+        final data = walletDoc.data()!;
+        final storedPin = data['tPin'];
+        final balance = (data['balance'] ?? 0).toDouble();
 
         if (_enteredPin == storedPin) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -62,18 +69,15 @@ class _EnterPinPageState extends State<EnterPinPage> {
           );
 
           if (widget.navigateToWallet) {
-            // Flow 2 → go to WalletBalancePage
+            // Navigate to Wallet page
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                builder: (_) => WalletBalancePage(
-                  username: widget.username,
-                  balance: balance,
-                ),
+                builder: (_) => WalletBalancePage(uid: uid, balance: balance),
               ),
             );
           } else {
-            // Flow 1 → return balance to dashboard
+            // Return balance to dashboard
             Navigator.pop(context, balance);
           }
         } else {
@@ -198,13 +202,10 @@ class _EnterPinPageState extends State<EnterPinPage> {
           child: Column(
             children: [
               const SizedBox(height: 40),
-              Text(
-                'Welcome ${widget.username},\nPlease enter your T-Pin',
+              const Text(
+                'Please enter your T-Pin',
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 40),
               _buildPinDots(),
@@ -260,22 +261,14 @@ class _EnterPinPageState extends State<EnterPinPage> {
                       children: [
                         Expanded(
                           child: _buildSpecialButton(
-                            child: const Icon(
-                              Icons.check,
-                              color: Colors.blue,
-                              size: 24,
-                            ),
+                            child: const Icon(Icons.check, color: Colors.blue),
                             onPressed: _verifyPin,
                           ),
                         ),
                         Expanded(child: _buildKeypadButton('0')),
                         Expanded(
                           child: _buildSpecialButton(
-                            child: const Icon(
-                              Icons.backspace_outlined,
-                              color: Colors.black87,
-                              size: 24,
-                            ),
+                            child: const Icon(Icons.backspace_outlined),
                             onPressed: () => _onKeyPressed('backspace'),
                           ),
                         ),

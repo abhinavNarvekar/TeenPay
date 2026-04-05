@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+
 import '../Dashboard/dashboard_temp.dart'; // Import your dashboard screen
 
 class ReceiptScreen extends StatelessWidget {
-  final String senderUsername;
-  final String recipientUsername;
+  final String senderUid;
+  final String recipientUid;
   final String recipientName;
   final double amount;
   final String note;
@@ -12,8 +13,8 @@ class ReceiptScreen extends StatelessWidget {
 
   const ReceiptScreen({
     Key? key,
-    required this.senderUsername,
-    required this.recipientUsername,
+    required this.senderUid,
+    required this.recipientUid,
     required this.recipientName,
     required this.amount,
     required this.note,
@@ -147,7 +148,7 @@ class ReceiptScreen extends StatelessWidget {
       children: [
         _buildDetailRow('Recipient', recipientName),
         const SizedBox(height: 12.0),
-        _buildDetailRow('Sender', senderUsername),
+        _buildDetailRow('Sender', 'You'),
         const SizedBox(height: 12.0),
         _buildDetailRow('Transaction ID', transactionId),
         const SizedBox(height: 12.0),
@@ -202,9 +203,7 @@ class ReceiptScreen extends StatelessWidget {
         onPressed: () {
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(
-              builder: (_) => TeenPayDashboard(username: senderUsername),
-            ),
+            MaterialPageRoute(builder: (_) => TeenPayDashboard()),
           );
         },
         style: ElevatedButton.styleFrom(

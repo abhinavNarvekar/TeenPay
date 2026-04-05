@@ -1,19 +1,19 @@
-import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+
+import '../PayToFriend/friendviewpage.dart';
+import '../Profile-section/profile_page.dart';
 import 'addmoneypage2.dart';
 import 'entertpin.dart';
-import 'scan_qr_code.dart';
-import '../Profile-section/profile_page.dart';
-import 'transaction_history.dart';
-import 'seependingreq.dart';
 import 'paytofriend_s1.dart';
-import '../PayToFriend/friendviewpage.dart';
 import 'rewardspage.dart';
+import 'scan_qr_code.dart';
+import 'seependingreq.dart';
+import 'transaction_history.dart';
 
 class TeenPayApp extends StatelessWidget {
-  final String? username;
-  const TeenPayApp({Key? key, this.username}) : super(key: key);
+  const TeenPayApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -23,15 +23,14 @@ class TeenPayApp extends StatelessWidget {
         primarySwatch: Colors.blue,
         scaffoldBackgroundColor: const Color(0xFFF5F7FA),
       ),
-      home: TeenPayDashboard(username: username),
+      home: const TeenPayDashboard(),
       debugShowCheckedModeBanner: false,
     );
   }
 }
 
 class TeenPayDashboard extends StatefulWidget {
-  final String? username;
-  const TeenPayDashboard({Key? key, this.username}) : super(key: key);
+  const TeenPayDashboard({Key? key}) : super(key: key);
 
   @override
   State<TeenPayDashboard> createState() => _TeenPayDashboardState();
@@ -44,6 +43,7 @@ class _TeenPayDashboardState extends State<TeenPayDashboard>
   double walletBalance = 0.0;
   bool _loading = true;
   bool _isBalanceVisible = false;
+  late String uid;
 
   bool _showAllContacts = false;
   List<Map<String, String>> _recentContacts = [];
@@ -55,6 +55,9 @@ class _TeenPayDashboardState extends State<TeenPayDashboard>
   @override
   void initState() {
     super.initState();
+
+    uid = FirebaseAuth.instance.currentUser!.uid;
+
     _fetchUserDetails();
     _fetchRecentContacts();
 
@@ -83,11 +86,11 @@ class _TeenPayDashboardState extends State<TeenPayDashboard>
       case 0:
         return _homeContent();
       case 1:
-        return TransactionHistoryPage(username: widget.username ?? '');
+        return TransactionHistoryPage(uid: uid);
       case 2:
-        return RewardsPage(senderUsername: widget.username ?? '');
+        return RewardsPage(senderUid: uid);
       case 3:
-        return ProfileScreen(username: widget.username);
+        return ProfileScreen();
       default:
         return _homeContent();
     }
@@ -99,34 +102,7 @@ class _TeenPayDashboardState extends State<TeenPayDashboard>
     });
 
     try {
-      final String? loggedInUsername = widget.username;
-      if (loggedInUsername == null || loggedInUsername.isEmpty) {
-        setState(() {
-          displayName = 'Unknown User';
-        });
-        return;
-      }
-
-      final usernameDoc = await FirebaseFirestore.instance
-          .collection('usernames')
-          .doc(loggedInUsername)
-          .get(const GetOptions(source: Source.server));
-
-      if (!usernameDoc.exists || usernameDoc.data() == null) {
-        setState(() {
-          displayName = loggedInUsername;
-        });
-        return;
-      }
-
-      final uid = usernameDoc.data()?['uid'] as String?;
-      if (uid == null || uid.isEmpty) {
-        setState(() {
-          displayName = loggedInUsername;
-        });
-        return;
-      }
-
+      // ✅ directly fetch using UID
       final kycDoc = await FirebaseFirestore.instance
           .collection('kyc')
           .doc(uid)
@@ -134,19 +110,18 @@ class _TeenPayDashboardState extends State<TeenPayDashboard>
 
       if (!kycDoc.exists || kycDoc.data() == null) {
         setState(() {
-          displayName = loggedInUsername;
+          displayName = 'User';
         });
         return;
       }
 
       final kycData = kycDoc.data()!;
+
       final String? name =
           kycData['name'] ?? kycData['fullName'] ?? kycData['displayName'];
 
       setState(() {
-        displayName = (name != null && name.isNotEmpty)
-            ? name
-            : loggedInUsername;
+        displayName = (name != null && name.isNotEmpty) ? name : 'User';
       });
 
       await _refreshBalance();
@@ -161,18 +136,21 @@ class _TeenPayDashboardState extends State<TeenPayDashboard>
   }
 
   Future<void> _refreshBalance() async {
-    final loggedInUsername = widget.username;
-    if (loggedInUsername != null && loggedInUsername.isNotEmpty) {
+    try {
       final walletDoc = await FirebaseFirestore.instance
           .collection('wallets')
-          .doc(loggedInUsername)
+          .doc(uid)
           .get();
+
       if (walletDoc.exists && walletDoc.data() != null) {
         final walletData = walletDoc.data()!;
+
         setState(() {
           walletBalance = ((walletData['balance'] ?? 0) as num).toDouble();
         });
       }
+    } catch (e) {
+      print('❌ Error fetching wallet balance: $e');
     }
   }
 
@@ -343,8 +321,6 @@ class _TeenPayDashboardState extends State<TeenPayDashboard>
                                                 MaterialPageRoute(
                                                   builder: (context) =>
                                                       EnterPinPage(
-                                                        username:
-                                                            widget.username!,
                                                         navigateToWallet: false,
                                                       ),
                                                 ),
@@ -442,8 +418,7 @@ class _TeenPayDashboardState extends State<TeenPayDashboard>
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) =>
-                      RewardsPage(senderUsername: widget.username!),
+                  builder: (context) => RewardsPage(senderUid: uid),
                 ),
               );
             },
@@ -472,8 +447,7 @@ class _TeenPayDashboardState extends State<TeenPayDashboard>
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) =>
-                    QrScannerPage(senderUsername: widget.username!),
+                builder: (context) => QrScannerPage(senderUid: uid),
               ),
             );
           },
@@ -484,15 +458,12 @@ class _TeenPayDashboardState extends State<TeenPayDashboard>
           'Pay to\nFriend',
           const Color(0xFFEC4899),
           onTap: () {
-            if (widget.username != null) {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      PayToFriendPage(currentUid: widget.username!),
-                ),
-              );
-            }
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => PayToFriendPage(currentUid: uid),
+              ),
+            );
           },
         ),
         const SizedBox(width: 16),
@@ -503,10 +474,7 @@ class _TeenPayDashboardState extends State<TeenPayDashboard>
           onTap: () async {
             final updatedBalance = await Navigator.push<double>(
               context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    AddMoneyScreen(username: widget.username!),
-              ),
+              MaterialPageRoute(builder: (context) => AddMoneyScreen()),
             );
             if (updatedBalance != null) {
               setState(() => walletBalance = updatedBalance);
@@ -522,8 +490,7 @@ class _TeenPayDashboardState extends State<TeenPayDashboard>
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) =>
-                    PendingRequestsPage(username: widget.username!),
+                builder: (context) => PendingRequestsPage(uid: uid),
               ),
             );
           },
@@ -585,13 +552,12 @@ class _TeenPayDashboardState extends State<TeenPayDashboard>
   );
   //recent contacts
   Future<void> _fetchRecentContacts() async {
-    final username = widget.username;
-    if (username == null) return;
+    final currentUid = uid;
 
     try {
       final querySnapshot = await FirebaseFirestore.instance
           .collection('transactions')
-          .doc(username)
+          .doc(currentUid)
           .collection('userTxns')
           .limit(100)
           .get();
@@ -601,7 +567,7 @@ class _TeenPayDashboardState extends State<TeenPayDashboard>
           .where((data) {
             // ✅ Only include completed transactions with real users
             final status = data['status'] == 'completed';
-            final counterparty = data['counterparty'] ?? '';
+            final counterparty = data['counterpartyUid'] ?? '';
             final counterpartyName = data['counterpartyName'] ?? '';
             final type = data['type'] ?? '';
 
@@ -623,12 +589,11 @@ class _TeenPayDashboardState extends State<TeenPayDashboard>
       // Get unique last 10 contacts
       final uniqueContactsMap = <String, String>{};
       for (var data in allTxns) {
-        final counterpartyUsername = data['counterparty'] as String? ?? '';
-        final counterpartyName =
-            data['counterpartyName'] as String? ?? counterpartyUsername;
+        final counterpartyUid = data['counterpartyUid'] as String? ?? '';
+        final counterpartyName = data['counterpartyName'] as String? ?? 'User';
 
-        if (!uniqueContactsMap.containsKey(counterpartyUsername)) {
-          uniqueContactsMap[counterpartyUsername] = counterpartyName;
+        if (!uniqueContactsMap.containsKey(counterpartyUid)) {
+          uniqueContactsMap[counterpartyUid] = counterpartyName;
         }
 
         if (uniqueContactsMap.length >= 10) break;
@@ -636,7 +601,7 @@ class _TeenPayDashboardState extends State<TeenPayDashboard>
 
       setState(() {
         _recentContacts = uniqueContactsMap.entries
-            .map((e) => {'username': e.key, 'name': e.value})
+            .map((e) => {'uid': e.key, 'name': e.value})
             .toList();
       });
     } catch (e) {
@@ -655,15 +620,14 @@ class _TeenPayDashboardState extends State<TeenPayDashboard>
       child: Row(
         children: [
           ...contactsToShow.map((contact) {
-            final counterpartyUsername = contact['username']!;
-            final name = contact['name'] ?? counterpartyUsername;
-            final color =
-                Colors.primaries[counterpartyUsername.hashCode %
-                    Colors.primaries.length];
+            final counterpartyUid = contact['uid']!;
+            final name = contact['name'] ?? 'User';
+            final color = Colors
+                .primaries[counterpartyUid.hashCode % Colors.primaries.length];
 
             return Padding(
               padding: const EdgeInsets.only(right: 18),
-              child: _buildContact(name, counterpartyUsername, color),
+              child: _buildContact(name, counterpartyUid, color),
             );
           }).toList(),
           if (_recentContacts.length > 4)
@@ -679,44 +643,31 @@ class _TeenPayDashboardState extends State<TeenPayDashboard>
     );
   }
 
-  Widget _buildContact(String name, String counterpartyUsername, Color color) =>
+  Widget _buildContact(String name, String counterpartyUid, Color color) =>
       Column(
         children: [
           Material(
             color: Colors.transparent,
             child: InkWell(
               onTap: () async {
-                final currentUsername = widget.username!;
-                final currentUidDoc = await FirebaseFirestore.instance
-                    .collection('usernames')
-                    .doc(currentUsername)
-                    .get();
-                final currentUid = currentUidDoc.data()?['uid'] as String?;
-                if (currentUid == null) return;
+                final currentUid = uid;
+                final friendUid = counterpartyUid;
 
+                // fetch current user phone
                 final currentUserDoc = await FirebaseFirestore.instance
                     .collection('users')
                     .doc(currentUid)
                     .get();
+
                 final currentPhone =
                     currentUserDoc.data()?['phone'] as String? ?? '';
 
-                final friendUsernameDoc = await FirebaseFirestore.instance
-                    .collection('usernames')
-                    .doc(counterpartyUsername)
-                    .get();
-                final friendUid = friendUsernameDoc.data()?['uid'] as String?;
-                if (friendUid == null) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Friend UID not found')),
-                  );
-                  return;
-                }
-
+                // fetch friend phone
                 final friendUserDoc = await FirebaseFirestore.instance
                     .collection('users')
                     .doc(friendUid)
                     .get();
+
                 final friendPhone =
                     friendUserDoc.data()?['phone'] as String? ?? '';
 
@@ -724,11 +675,11 @@ class _TeenPayDashboardState extends State<TeenPayDashboard>
                   context,
                   MaterialPageRoute(
                     builder: (context) => PaymentHistoryScreen(
-                      currentUsername: currentUsername,
+                      senderUid: currentUid,
                       currentPhone: currentPhone,
-                      friendUsername: counterpartyUsername,
-                      friendPhone: friendPhone,
                       recipientUid: friendUid,
+                      recipientName: name, // 👈 IMPORTANT
+                      friendPhone: friendPhone,
                     ),
                   ),
                 );
@@ -928,15 +879,12 @@ class _TeenPayDashboardState extends State<TeenPayDashboard>
             true,
             const Color(0xFF667EEA),
             onTap: () {
-              if (widget.username != null) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        TransactionHistoryPage(username: widget.username!),
-                  ),
-                );
-              }
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => TransactionHistoryPage(uid: uid),
+                ),
+              );
             },
           ),
           _buildManageOption(
@@ -948,10 +896,7 @@ class _TeenPayDashboardState extends State<TeenPayDashboard>
               final balance = await Navigator.push<double>(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => EnterPinPage(
-                    username: widget.username!,
-                    navigateToWallet: true,
-                  ),
+                  builder: (context) => EnterPinPage(navigateToWallet: true),
                 ),
               );
               if (balance != null) {
