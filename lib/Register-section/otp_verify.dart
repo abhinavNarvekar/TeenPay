@@ -1,14 +1,15 @@
 // lib/Login-section/otp_verify.dart
 
+import 'dart:async';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'dart:async';
-import '../login_or_register.dart'; // For OtpMode enum
-import '../KYC-section/KYC_intro.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import '../Post-kyc-registration/setusername_pass.dart';
+
 import '../Dashboard/dashboard_temp.dart';
+import '../KYC-section/KYC_intro.dart';
+import '../login_or_register.dart'; // For OtpMode enum
 
 class OTPVerificationScreen extends StatefulWidget {
   final String verificationId;
@@ -33,8 +34,10 @@ class OTPVerificationScreen extends StatefulWidget {
 }
 
 class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
-  final List<TextEditingController> _controllers =
-      List.generate(6, (_) => TextEditingController());
+  final List<TextEditingController> _controllers = List.generate(
+    6,
+    (_) => TextEditingController(),
+  );
   final List<FocusNode> _focusNodes = List.generate(6, (Index) => FocusNode());
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
@@ -158,12 +161,12 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
       if (username != null) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(
-            builder: (_) => TeenPayApp(username: username),
-          ),
+          MaterialPageRoute(builder: (_) => TeenPayApp(username: username)),
         );
       } else {
-        _showErrorDialog('Failed to retrieve username. Please try logging in again.');
+        _showErrorDialog(
+          'Failed to retrieve username. Please try logging in again.',
+        );
       }
     } else if (widget.mode == OtpMode.registration) {
       try {
@@ -188,9 +191,9 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
               .collection('contacts')
               .doc(user.phoneNumber)
               .set({
-            'uid': user.uid,
-            'createdAt': FieldValue.serverTimestamp(),
-          });
+                'uid': user.uid,
+                'createdAt': FieldValue.serverTimestamp(),
+              });
         }
 
         Navigator.pushReplacement(
@@ -223,7 +226,9 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
     try {
       if (kIsWeb) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please go back and request a new code')),
+          const SnackBar(
+            content: Text('Please go back and request a new code'),
+          ),
         );
         Navigator.pop(context);
       } else {
